@@ -1,0 +1,73 @@
+{{/* Partes comunes de todas las páginas. */}}
+{{define "cabeza"}}<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.}} · Monitoreo de Red</title>
+<meta name="htmx-config" content='{"allowEval":false,"allowScriptTags":false,"includeIndicatorStyles":false,"historyCacheSize":0}'>
+<link rel="stylesheet" href="/static/app.css?v={{huella}}">
+<script src="/static/htmx.min.js?v={{huella}}" defer></script>
+<script src="/static/app.js?v={{huella}}" defer></script>{{end}}
+
+{{/* íconos (mismos trazos que el panel) */}}
+{{define "logo"}}<svg class="logo i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="M12 7v5M12 12l-6 5M12 12l6 5"/></svg>{{end}}
+{{define "i-mas"}}<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>{{end}}
+{{define "i-editar"}}<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>{{end}}
+{{define "i-borrar"}}<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>{{end}}
+{{define "i-cerrar"}}<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>{{end}}
+{{define "i-engrane"}}<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>{{end}}
+
+{{/*
+  Marco de las páginas con menú. Datos: web.Marco (.Titulo, .Activa, .Usuario,
+  .Perfil, .PerfilNombre, .Router, .Version). Las pestañas que aún no se migran
+  apuntan al panel viejo (/?tab=…).
+*/}}
+{{define "pagina-ini"}}<!DOCTYPE html>
+<html lang="es">
+<head>{{template "cabeza" .Titulo}}</head>
+<body class="pagina">
+<header>
+  <a class="brand" href="/"><span class="isle">{{template "logo"}}</span>Monitoreo de Red</a>
+  <nav>
+    <a href="/"{{if eq .Activa "resumen"}} class="on"{{end}}>Resumen</a>
+    <a href="/?tab=dispositivos"{{if eq .Activa "dispositivos"}} class="on"{{end}}>Dispositivos</a>
+    <a href="/?tab=objetivos"{{if eq .Activa "objetivos"}} class="on"{{end}}>Internet y servicios</a>
+    {{if .Router}}<a href="/?tab=router"{{if eq .Activa "router"}} class="on"{{end}}>Router</a>{{end}}
+    <a href="/?tab=eventos"{{if eq .Activa "eventos"}} class="on"{{end}}>Eventos</a>
+    <a href="/configuracion" title="Configuración" aria-label="Configuración"{{if eq .Activa "configuracion"}} class="on"{{end}}>{{template "i-engrane"}}</a>
+  </nav>
+  <details class="cuenta">
+    <summary>{{.Usuario}} ▾</summary>
+    <div class="menu">
+      <div class="sub">{{.PerfilNombre}}</div>
+      <button hx-get="/cuenta/clave" hx-target="#modal">Cambiar mi contraseña</button>
+      <form method="post" action="/salir"><button>Salir</button></form>
+    </div>
+  </details>
+</header>
+<main>{{end}}
+
+{{define "pagina-fin"}}</main>
+<footer><span>{{.Usuario}} · {{.PerfilNombre}}</span><span>Monitoreo de Red <b>v{{.Version}}</b></span></footer>
+<div id="modal"></div>
+</body>
+</html>{{end}}
+
+{{/* Ventana (modal): se pinta dentro de #modal; ✕, Esc o clic afuera la cierran. */}}
+{{define "modal-ini"}}<div class="mov" data-cerrar>
+<div class="modal" role="dialog" aria-modal="true">
+  <div class="mh"><h3>{{.}}</h3>
+    <button type="button" class="ibtn" title="Cerrar" aria-label="Cerrar" data-cerrar>{{template "i-cerrar"}}</button></div>{{end}}
+{{define "modal-fin"}}</div></div>{{end}}
+
+{{/* Cambiar mi contraseña (cualquier perfil). Datos: .Error, .Hecho */}}
+{{define "cuenta-clave"}}{{template "modal-ini" "Cambiar mi contraseña"}}
+  {{if .Hecho}}
+  <p>Contraseña cambiada. Las demás sesiones de tu cuenta se cerraron.</p>
+  <div class="mf"><button type="button" class="btn" data-cerrar>Listo</button></div>
+  {{else}}
+  <form hx-post="/cuenta/clave" hx-target="#modal" hx-disabled-elt="find button">
+    <label for="actual">Actual</label><input id="actual" name="actual" type="password" autocomplete="current-password" required autofocus>
+    <label for="nueva">Nueva (mínimo 8)</label><input id="nueva" name="nueva" type="password" autocomplete="new-password" required>
+    <div class="mf"><span class="error">{{.Error}}</span><button class="btn">Guardar</button></div>
+  </form>
+  {{end}}
+{{template "modal-fin"}}{{end}}

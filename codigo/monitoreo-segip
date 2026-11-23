@@ -1,0 +1,85 @@
+#!/bin/bash
+# Monitoreo de Red - opción A: una IP de la Pi en cada segmento para probar SU internet.
+# Lee /etc/monitoreo/segip.conf (líneas "segmento puerta [ip]") y por cada uno:
+#   - toma la IP indicada o la primera libre de .253/.252/.251 (comprobada con arping -D)
+#   - la pone en el cable SIN ruta en la tabla principal (noprefixroute): la Pi no cambia
+#     su forma normal de salir; solo lo que sale DESDE esa IP usa la tabla propia del segmento
+#   - tabla y regla propias (prioridad 20000+n): "desde IP -> sale por la puerta del segmento"
+# Escribe /run/monitoreo/segprobe.list (segmento ip puerta) para el programa.
+# Uso: sudo monitoreo-segip          aplicar (al prender y cada 5 min, no repite lo que ya está)
+#      sudo monitoreo-segip ver      mostrar lo puesto
+#      sudo monitoreo-segip quitar   quitar todo (IPs, rutas y reglas)
+CONF=/etc/monitoreo/segip.conf
+OUT=/run/monitoreo/segprobe.list
+BASE=20000
+IF=$(ip route show default | awk '{for(i=1;i<NF;i++) if($i=="dev"){print $(i+1); exit}}')
+case "$IF" in eth*|en*) ;; *) IF=eth0 ;; esac
+LBL="$IF:sp"
+
+# en "ip -o addr" la etiqueta no es la última columna: se busca en toda la línea
+nuestras() { ip -4 -o addr show dev "$IF" | tr -d '\\' | awk -v l="$LBL" '{for(i=5;i<=NF;i++) if($i==l){print $4; break}}'; }
+
+quitar() {
+  for a in $(nuestras); do ip addr del "$a" dev "$IF"; done
+  for p in $(ip rule show | awk -F: -v b=$BASE '$1>=b && $1<b+1000{print $1}' | sort -u); do
+    ip rule del priority "$p" 2>/dev/null
+    ip route flush table "$p" 2>/dev/null
+  done
+  rm -f "$OUT"
+}
+
+if [ "$1" = quitar ]; then quitar; echo "Listo: se quitaron las IPs de prueba."; exit 0; fi
+if [ "$1" = ver ]; then
+  echo "IPs de prueba en $IF:"; nuestras
+  echo; echo "Segmentos que prueba el programa:"; cat "$OUT" 2>/dev/null || echo "(ninguno)"
+  exit 0
+fi
+[ "$(id -u)" = 0 ] || { echo "Usa: sudo monitoreo-segip"; exit 1; }
+[ -f "$CONF" ] || { quitar; exit 0; }
+command -v arping >/dev/null || { echo "Falta arping (apt-get install iputils-arping)"; exit 1; }
+
+mkdir -p /run/monitoreo
+PROPIAS=$(ip -4 -o addr show dev "$IF" | tr -d '\\' | awk -v l="$LBL" '{e=0; for(i=5;i<=NF;i++) if($i==l) e=1; if(!e) print $4}' | cut -d/ -f1)
+tmp=$(mktemp)
+quedan=""
+n=0
+while read -r linea; do
+  linea=${linea%%#*}; read -r seg gw ip _ <<< "$linea"
+  case "$seg" in ''|\#*) continue ;; esac
+  n=$((n+1)); p=$((BASE+n))
+  case "$seg" in *.*) red=$seg ;; *) red=192.168.$seg ;; esac
+  # el segmento propio de la Pi ya se prueba con su salida normal
+  if echo "$PROPIAS" | grep -q "^${red//./\\.}\."; then continue; fi
+  # ¿ya tenemos una IP en este segmento?
+  ya=$(nuestras | grep "^${red//./\\.}\." | head -1 | cut -d/ -f1)
+  if [ -n "$ya" ] && { [ -z "$ip" ] || [ "$ip" = "$ya" ]; }; then
+    ip="$ya"
+  else
+    [ -n "$ya" ] && ip addr del "$ya/24" dev "$IF"
+    cands=${ip:-"$red.253 $red.252 $red.251"}
+    ip=""
+    for c in $cands; do
+      if arping -D -q -c 2 -w 3 -I "$IF" "$c"; then ip=$c; break; fi
+      echo "$red: $c ocupada, se salta" >&2
+    done
+    [ -z "$ip" ] && { echo "$red: sin IP libre, no se prueba" >&2; continue; }
+    ip addr add "$ip/24" dev "$IF" label "$LBL" noprefixroute 2>/dev/null ||
+      ip -4 -o addr show dev "$IF" | grep -q " $ip/" || continue
+  fi
+  ip route replace "$red.0/24" dev "$IF" src "$ip" table "$p"
+  ip route replace default via "$gw" dev "$IF" src "$ip" table "$p"
+  ip rule del priority "$p" 2>/dev/null
+  ip rule add from "$ip" lookup "$p" priority "$p"
+  quedan="$quedan $ip"
+  echo "$seg $ip $gw" >> "$tmp"
+done < "$CONF"
+
+# quitar IPs de segmentos que ya no están en la lista
+for a in $(nuestras); do
+  case " $quedan " in *" ${a%/*} "*) ;; *) ip addr del "$a" dev "$IF" ;; esac
+done
+for p in $(ip rule show | awk -F: -v b=$BASE -v n=$n '$1>b+n && $1<b+1000{print $1}' | sort -u); do
+  ip rule del priority "$p"; ip route flush table "$p"
+done
+install -m 644 "$tmp" "$OUT"; rm -f "$tmp"
+echo "Segmentos con IP de prueba: $(wc -l < "$OUT")"

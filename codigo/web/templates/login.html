@@ -1,0 +1,34 @@
+{{/*
+  Pantalla de entrada. Datos: .Primera (no hay cuentas: se crea el administrador),
+  .Usuario (lo que ya escribió), .Error.
+  Con htmx el formulario se manda sin recargar y solo cambia #error; sin htmx
+  (navegador sin JavaScript) funciona igual como formulario normal.
+*/}}
+{{define "login"}}<!DOCTYPE html>
+<html lang="es">
+<head>{{template "cabeza" "Entrar"}}</head>
+<body class="pantalla-login">
+<form class="caja-login" method="post" action="/login"
+      hx-post="/login" hx-target="#error" hx-swap="innerHTML" hx-disabled-elt="find button">
+  <div class="marca">{{template "logo"}}Monitoreo de Red</div>
+  {{if .Primera}}
+  <p class="sub">Primera vez: crea la cuenta de administrador (mínimo 8 caracteres).</p>
+  {{else}}
+  <p class="sub">Inicia sesión</p>
+  {{end}}
+  <label for="usuario">Usuario</label>
+  <input id="usuario" name="usuario" value="{{.Usuario}}" autocomplete="username" autocapitalize="none" required autofocus>
+  <label for="clave">Contraseña</label>
+  <input id="clave" name="clave" type="password" autocomplete="{{if .Primera}}new-password{{else}}current-password{{end}}" required>
+  {{if .Primera}}
+  <label for="clave2">Repite la contraseña</label>
+  <input id="clave2" name="clave2" type="password" autocomplete="new-password" required>
+  {{end}}
+  <button>{{if .Primera}}Crear y entrar{{else}}Entrar{{end}}</button>
+  <div id="error" class="error" role="alert">{{template "login-error" .Error}}</div>
+</form>
+</body>
+</html>{{end}}
+
+{{/* Lo único que cambia cuando la entrada falla (respuesta a htmx). */}}
+{{define "login-error"}}{{.}}{{end}}

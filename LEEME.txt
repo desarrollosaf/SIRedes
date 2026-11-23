@@ -1,0 +1,55 @@
+MONITOREO DE RED - Monitor de red para Raspberry Pi
+====================================================
+
+ARCHIVOS PARA INSTALAR
+  monitoreo-arm64   -> Raspberry Pi OS de 64 bits (uname -m = aarch64)
+  monitoreo-armv7   -> Raspberry Pi OS de 32 bits (uname -m = armv7l)
+  monitoreo-ip      -> comando para cambiar la IP de la Pi
+  install.sh        -> instalador (elige solo el binario correcto)
+
+INSTALACIÓN / ACTUALIZACIÓN
+  1. Copia los 5 archivos a la Raspberry (WinSCP, o desde PowerShell):
+       scp monitoreo-arm64 monitoreo-armv7 monitoreo-ip monitoreo-autoip install.sh redes@IP-DE-LA-PI:/home/redes/
+  2. Entra a la Pi:   ssh redes@IP-DE-LA-PI
+  3. Instala:         chmod +x install.sh && sudo ./install.sh
+  4. Abre desde cualquier equipo de la red:  http://IP-DE-LA-PI:5000
+  5. Ya puedes borrar los archivos copiados:
+       rm ~/monitoreo-arm64 ~/monitoreo-armv7 ~/monitoreo-ip ~/monitoreo-autoip ~/install.sh
+  Los datos (/opt/monitoreo/data.db) se conservan al actualizar.
+  Si había una instalación vieja "netmonitor", el instalador la quita y pasa sus datos.
+
+DÓNDE QUEDA
+  Programa:   /opt/monitoreo/monitoreo
+  Datos:      /opt/monitoreo/data.db
+  Servicio:   /etc/systemd/system/monitoreo.service  (arranca solo al prender la Pi)
+
+IP AUTOMÁTICA (viene activada)
+  Al prender y cada 5 min la Pi revisa el cable. Si la llevaste a otra red, usa DHCP
+  si la red lo da; si no, elige sola una IP libre (.200 en adelante) con su puerta.
+  Entra con  http://monitoreo.local:5000  o pregunta la IP:  sudo monitoreo-ip ver
+  Activarla otra vez después de fijar una IP a mano:  sudo monitoreo-ip auto
+  Archivos: monitoreo-autoip (también copiarlo a la Pi)
+
+CAMBIAR LA IP A MANO (apaga la automática)
+  Antes de desconectarla:   sudo monitoreo-ip
+  Pide la IP nueva y la puerta de enlace (por omisión la .254) y ofrece apagar la Pi.
+  Otras formas:
+    sudo monitoreo-ip 192.168.50.200                 (puerta = 192.168.50.254)
+    sudo monitoreo-ip 192.168.50.200 192.168.50.1
+    sudo monitoreo-ip dhcp                           (red que da IP sola)
+    sudo monitoreo-ip ver                            (solo ver la IP actual)
+  Si pierdes la Pi: entra por Wi-Fi, o conecta teclado y monitor.
+
+COMANDOS ÚTILES
+  sudo systemctl status monitoreo      estado
+  sudo systemctl restart monitoreo     reiniciar
+  sudo journalctl -u monitoreo -f      ver el registro en vivo
+
+PONER CONTRASEÑA
+  sudo nano /etc/systemd/system/monitoreo.service
+  Quita el # de las líneas NETMON_USER y NETMON_PASS y cambia los valores.
+  Luego:  sudo systemctl daemon-reload && sudo systemctl restart monitoreo
+  (ojo: volver a correr install.sh reescribe este archivo)
+
+CAMBIAR EL PUERTO
+  sudo PORT=8080 ./install.sh

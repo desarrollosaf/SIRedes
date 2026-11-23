@@ -1,0 +1,13 @@
+# Binarios compilados (se regeneran con go build)
+monitoreo-arm64
+monitoreo-armv7
+monitoreo-ip
+monitoreo-autoip
+*.exe
+
+# Datos locales y secretos
+*.db
+*.sqlite
+*.log
+.env
+*.env

@@ -1,0 +1,1258 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monitoreo de Red</title>
+<style>
+:root{
+  --bg:#ffffff;--panel:#ffffff;--line:#e3e8ef;--line2:#eef2f6;--txt:#1f2933;--mut:#6b7785;
+  --ok:#1a7f37;--okbg:#e6f4ea;--warn:#b26a00;--warnbg:#fff4e0;--bad:#cf222e;--badbg:#fdecec;
+  --acc:#7b1e34;--accbg:#f7ebee;--acc2:#5e1527;--vio:#7b1e34;--viobg:#f7ebee;--gray:#94a3b8;--graybg:#eef1f5;
+}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;display:flex;flex-direction:column;font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--txt)}
+/* encabezado y pie en rojo vino */
+header{display:flex;align-items:center;gap:18px;padding:12px 22px;background:linear-gradient(180deg,#86233b,var(--acc));color:#fff;position:sticky;top:0;z-index:5;flex-wrap:wrap;box-shadow:0 4px 14px #7b1e3433}
+.brand{display:flex;align-items:center;gap:10px;font-weight:650;font-size:17px;color:#fff}
+.brand .isle{background:#ffffff26;color:#fff}
+nav{display:flex;gap:6px;flex-wrap:wrap}
+nav button{background:none;border:0;color:#f3dfe4;padding:8px 15px;border-radius:999px;cursor:pointer;font:inherit;font-weight:500;transition:background .15s,transform .15s}
+nav button:hover{background:#ffffff1f;color:#fff}
+nav a.navico{color:#f3dfe4;padding:8px 15px;border-radius:999px}nav a.navico:hover{background:#ffffff1f;color:#fff}
+nav button.on{background:#fff;color:var(--acc);box-shadow:0 3px 10px #0000002e}
+footer{background:var(--acc);color:#f3dfe4;font-size:12.5px;padding:12px 22px;display:flex;gap:6px 18px;flex-wrap:wrap;justify-content:space-between;margin-top:30px}
+footer b{color:#fff;font-weight:600}
+nav button.alert::after{content:'';display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--bad);margin-left:6px;vertical-align:middle;animation:blink 1.2s infinite}
+@keyframes blink{50%{opacity:.25}}
+.meta{margin-left:auto;color:var(--mut);font-size:12px}
+main{padding:22px;max-width:1300px;width:100%;margin:0 auto;flex:1}
+h2{font-size:15px;margin:26px 0 4px}
+.lead{color:var(--mut);font-size:13px;margin:0 0 12px}
+
+/* islas de íconos */
+.isle{flex:none;width:40px;height:40px;border-radius:12px;display:grid;place-items:center}
+.isle svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.isle.sm{width:32px;height:32px;border-radius:10px}.isle.sm svg{width:17px;height:17px}
+.i-acc{background:var(--accbg);color:var(--acc)}.i-ok{background:var(--okbg);color:var(--ok)}
+.i-warn{background:var(--warnbg);color:var(--warn)}.i-bad{background:var(--badbg);color:var(--bad)}
+.i-vio{background:var(--viobg);color:var(--vio)}.i-gray{background:var(--graybg);color:var(--mut)}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:0 1px 2px #0000000a}
+.kpi{display:flex;gap:14px;align-items:flex-start}
+.kpi h3{margin:0;font-size:13px;font-weight:600}
+.big{font-size:26px;font-weight:650;line-height:1.2;margin:4px 0 2px}
+.sub{color:var(--mut);font-size:12.5px}
+.click{cursor:pointer}.click:hover{border-color:var(--acc)}
+
+.banner{display:flex;gap:14px;align-items:center;border-radius:14px;padding:16px 18px;border:1px solid}
+.banner b{font-size:15px}
+.banner.ok{background:var(--okbg);border-color:#bfe3c8}.banner.warn{background:var(--warnbg);border-color:#f3d39b}.banner.bad{background:var(--badbg);border-color:#f3b8bc}
+
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.chip{font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px}
+.h-normal{background:var(--okbg);color:var(--ok)}.h-inestable{background:var(--warnbg);color:var(--warn)}
+.h-problema{background:var(--badbg);color:var(--bad)}.h-caido{background:var(--bad);color:#fff}.h-desconectado{background:var(--graybg);color:var(--mut)}.h-pendiente{background:#fff;color:var(--mut);border:1px dashed #cbd3dc}
+
+.bar{height:6px;background:var(--line2);border-radius:3px;margin-top:6px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--acc)}
+canvas{width:100%;height:56px;display:block;margin-top:8px}
+.mini{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-top:12px}
+.mini .lbl{font-size:12px;color:var(--mut)}.mini .val{font-size:18px;font-weight:650}
+
+.wrap{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:14px}
+table{width:100%;border-collapse:collapse}
+th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line2);vertical-align:middle}
+th{color:var(--mut);font-weight:600;font-size:12px;background:#fafbfc}
+tr:last-child td{border-bottom:0}
+tbody tr:hover{background:#f8fafc}
+/* segmentos colapsables */
+.segcard{background:var(--panel);border:1px solid var(--line);border-radius:14px;margin-bottom:10px;overflow:hidden;box-shadow:0 1px 2px #0000000a;transition:border-color .15s}
+.segcard:hover{border-color:#e2c3cb}
+.segcard.open{border-color:#d4a5b1;box-shadow:0 2px 8px #7b1e3414}
+.segcard.down{border-color:#f3b8bc;box-shadow:0 0 0 3px #fdecec}
+.seghead{display:flex;align-items:center;gap:14px;padding:12px 16px;cursor:pointer;user-select:none;flex-wrap:wrap}
+.seghead:hover{background:#f8fafc}
+.chev{display:grid;place-items:center;width:22px;height:22px;color:var(--mut);transition:transform .2s}
+.chev svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.segcard.open .chev{transform:rotate(90deg);color:var(--acc)}
+.segname{display:flex;flex-direction:column;min-width:130px}
+.segname b{font-size:14px}
+.segcount{display:flex;align-items:baseline;gap:5px;min-width:90px}
+.segcount b{font-size:18px}
+.segbar{flex:1 1 140px;max-width:260px;height:8px;border-radius:4px;background:var(--line2);display:flex;overflow:hidden}
+.segbar i{display:block;height:100%}
+.b-normal{background:#2da44e}.b-inestable{background:#d4a72c}.b-problema{background:#e5534b}.b-caido{background:#a40e26}.b-pendiente{background:#dfe4ea}.b-noinet{background:#cf222e}.b-off{background:#c4ccd6}
+/* los 3 estados: conectado, sin internet, desconectado */
+.st{display:inline-block;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;white-space:nowrap}
+.st-ok{background:var(--okbg);color:var(--ok)}
+.st-noinet{background:var(--bad);color:#fff}
+.st-off{background:var(--graybg);color:var(--mut)}
+.st-pend{background:#fff;color:var(--mut);border:1px dashed #cbd3dc}
+/* indicadores: cable e internet */
+.ind{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:9px}
+.ind svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ind-ok{background:var(--okbg);color:var(--ok)}
+.ind-bad{background:var(--badbg);color:var(--bad);box-shadow:0 0 0 2px #f3b8bc}
+.ind-off{background:var(--graybg);color:#a7b1bc}
+.seghead .chips{margin:0;margin-left:auto}
+.segbody{border-top:1px solid var(--line2)}
+.segbody .wrap{border:0;border-radius:0}
+@media(max-width:700px){.segbar{display:none}.seghead .chips{margin-left:0}}
+td canvas{height:26px;width:120px;margin:0}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.d-on{background:var(--ok)}.d-off{background:var(--bad)}
+.tag{font-size:11px;padding:2px 8px;border-radius:999px;background:var(--graybg);color:var(--mut);white-space:nowrap}
+.tag.new{background:var(--warnbg);color:var(--warn)}
+.mono{font-family:ui-monospace,Consolas,monospace;font-size:12.5px}
+.who{display:flex;gap:10px;align-items:center}
+.toolbar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+input,select{background:#fff;border:1px solid var(--line);color:var(--txt);padding:8px 11px;border-radius:9px;font:inherit}
+.btn{background:var(--acc);color:#fff;border:0;padding:8px 14px;border-radius:9px;cursor:pointer;font:inherit;font-weight:500}
+/* botones tipo isla: flotan con sombra */
+.btn{box-shadow:0 4px 12px #7b1e3440,0 1px 2px #0000001a;border-radius:12px;transition:transform .12s,box-shadow .12s,background .12s}
+.btn:hover{background:var(--acc2);transform:translateY(-1px);box-shadow:0 7px 18px #7b1e3452,0 2px 4px #0000001a}
+.btn:active{transform:translateY(0);box-shadow:0 2px 6px #7b1e3440}
+.btn.sec{background:#fff;color:var(--acc);border:1px solid #ecd6dc;box-shadow:0 4px 12px #0000000f,0 1px 2px #00000012}
+.btn.sec:hover{background:var(--accbg);color:var(--acc);box-shadow:0 7px 18px #7b1e341f}
+.card.click{transition:transform .12s,box-shadow .12s}
+.card.click:hover{transform:translateY(-2px);box-shadow:0 8px 20px #7b1e341a}
+.btn.sec{background:var(--line2);color:var(--txt)}
+.btn.sm{padding:4px 10px;font-size:12px}
+.btn:disabled{opacity:.55;cursor:wait}
+.btn.rng.on{background:var(--accbg);color:var(--acc)}
+.ev{display:flex;gap:12px;padding:9px 14px;border-bottom:1px solid var(--line2);align-items:center}
+.ev:last-child{border-bottom:0}
+.ev time{color:var(--mut);font-size:12px;min-width:140px}
+.ev b{min-width:70px;font-size:12.5px}
+.ev.new b{color:var(--acc)}.ev.offline b{color:var(--bad)}.ev.corte b{color:var(--warn)}.ev.online b{color:var(--ok)}
+.ev.desconectado b,.ev.conectado b,.ev.info b{color:var(--mut)}.ev.desconectado span,.ev.conectado span{color:var(--mut)}
+.ev b{min-width:100px}
+.hide{display:none!important}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--mut);margin:8px 2px 0}
+
+/* panel de detalle */
+.overlay{position:fixed;inset:0;background:#0f172a55;display:flex;justify-content:flex-end;z-index:20}
+.drawer{background:var(--panel);width:min(520px,100%);height:100%;overflow:auto;padding:22px;box-shadow:-8px 0 30px #0002}
+.drawer h3{margin:0}
+.kv{display:grid;grid-template-columns:140px 1fr;gap:6px 12px;margin:14px 0;font-size:13px}
+.kv div:nth-child(odd){color:var(--mut)}
+.steps{margin:6px 0 0;padding-left:20px;font-size:13px}.steps li{margin:5px 0}
+.ports{display:flex;flex-wrap:wrap;gap:6px}
+/* alerta de internet: tarjeta propia, roja sólida */
+.alarm{background:linear-gradient(135deg,#c0262f,#8f1622);color:#fff;border-radius:16px;padding:16px 18px;margin-bottom:14px;box-shadow:0 10px 28px #b4232f45}
+.alarm .ahead{display:flex;align-items:center;gap:14px}
+.alarm .aico{flex:0 0 46px;height:46px;border-radius:13px;background:#ffffff26;display:grid;place-items:center;position:relative}
+.alarm .aico::after{content:'';position:absolute;inset:-4px;border-radius:16px;border:2px solid #ffffff80;animation:ring 1.6s infinite}
+.alarm .aico svg{width:24px;height:24px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+@keyframes ring{0%{opacity:1;transform:scale(.92)}100%{opacity:0;transform:scale(1.25)}}
+.alarm .atitle{font-size:19px;font-weight:700;letter-spacing:.4px}
+.alarm .asub{color:#ffe1e5;font-size:13.5px;margin-top:2px}
+.alarm .arows{margin-top:12px;display:grid;gap:8px}
+.alarm .arow{background:#ffffff1c;border:1px solid #ffffff2e;border-radius:11px;padding:9px 12px;display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;cursor:pointer;transition:background .15s}
+.alarm .arow:hover{background:#ffffff33}
+.alarm .arow b{font-size:14.5px}
+.alarm .arow .meta2{color:#ffe1e5;font-size:12.5px}
+.alarm .pill{background:#fff;color:#a40e26;border-radius:999px;padding:2px 10px;font-weight:700;font-size:12px}
+.alarm .afoot{margin-top:10px;font-size:12.5px;color:#ffe1e5}
+.card.alarmed{background:#fff6f6;border-color:#f3b8bc;box-shadow:0 0 0 3px #f3b8bc55}
+.card.alarmed .big{color:var(--bad)}
+.ind-unk{background:var(--graybg);color:#a7b1bc;border:1px dashed #c4ccd6}
+/* registro de cortes */
+.outk{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:12px}
+.outk .card b{display:block;font-size:24px;margin-top:2px}
+.netnow{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.netnow .big{font-size:26px;font-weight:700}
+.netnow .cnt{margin-left:auto;display:flex;gap:22px}
+.netnow .cnt div{text-align:center}.netnow .cnt b{display:block;font-size:20px}
+.tgts td{padding-top:8px;padding-bottom:8px}
+.addt{margin-top:10px}.addt summary{cursor:pointer;color:var(--mut);font-size:13px;margin-bottom:8px}
+.dur{font-variant-numeric:tabular-nums}
+/* botones de icono y modal centrado */
+.ibtn{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:10px;border:1px solid var(--line2);background:var(--panel);color:var(--mut);cursor:pointer}
+.ibtn:hover{color:var(--acc);background:var(--accbg)}
+.ibtn.pri{background:var(--acc);color:#fff;border:0}.ibtn.pri:hover{background:var(--acc2);color:#fff}
+.ibtn svg,.navico svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.navico{display:inline-grid;place-items:center}
+.mov{position:fixed;inset:0;background:#0f172a55;display:grid;place-items:center;z-index:30;padding:16px}
+.modal{background:var(--panel);border-radius:16px;width:min(420px,100%);padding:20px;box-shadow:0 20px 50px #0003}
+.modal .mh{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.modal .mh h3{margin:0}
+.modal label{display:block;font-size:12px;color:var(--mut);margin:10px 0 4px}
+.modal input[type=text]{width:100%;box-sizing:border-box}
+.modal .mf{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;align-items:center}
+.rtsegs{display:flex;flex-direction:column;gap:6px}
+.rtseg{display:grid;grid-template-columns:auto 1fr auto 16px;align-items:center;gap:10px;text-align:left;background:var(--bg,#f6f7f9);border:1px solid var(--line);border-radius:10px;padding:8px 10px;cursor:pointer;font:inherit;color:inherit}
+.rtseg:hover{border-color:var(--acc)}
+.rtseg .n{font-weight:600}.rtseg .chev svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2}
+.modal .mf .err{margin-right:auto;color:var(--bad);font-size:12px}
+.hints{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.hints .chip{cursor:pointer;border:1px solid var(--line);background:var(--panel);font:inherit;font-size:12px}
+.hints .chip:hover{border-color:var(--acc);color:var(--acc)}
+.segl{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+/* cuenta (arriba a la derecha) y solo lectura */
+.acct{margin-left:auto;position:relative}
+.acct>button{background:#ffffff1f;border:0;color:#fff;border-radius:999px;padding:7px 14px;font:inherit;cursor:pointer}
+.acct .menu{position:absolute;right:0;top:calc(100% + 6px);background:#fff;color:var(--txt);border-radius:12px;box-shadow:0 12px 30px #0003;padding:6px;min-width:190px;z-index:9}
+.acct .menu button{display:block;width:100%;text-align:left;background:none;border:0;padding:8px 10px;border-radius:8px;font:inherit;cursor:pointer;color:inherit}
+.acct .menu button:hover{background:var(--accbg)}
+.acct .menu .sub{padding:4px 10px 8px}
+body.ro .w{display:none!important}
+/* configuración: pestañas internas */
+.subtabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.subtabs button{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:7px 15px;font:inherit;cursor:pointer;color:var(--txt)}
+.subtabs button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.cfgt input{width:100%;border:1px solid transparent;background:none;padding:5px 7px;border-radius:8px;font:inherit}
+.cfgt input:hover{border-color:var(--line)}.cfgt input:focus{border-color:var(--acc);outline:none;background:#fff}
+.cfgt input.saved{border-color:var(--ok)}
+.modal select{width:100%;padding:8px;border:1px solid var(--line);border-radius:10px;font:inherit}
+.segl h3{margin:0}
+.segt td{padding-top:7px;padding-bottom:7px}
+.segt td.act{text-align:right;width:1%;white-space:nowrap}
+/* barra de filtros de Dispositivos */
+.fbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.pill{display:flex;align-items:center;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:5px}
+.fgrp{flex-wrap:wrap}
+.fbar select{border:0;border-radius:0;background:transparent;padding:6px 10px;cursor:pointer;color:var(--txt)}
+.fbar select:focus,.fsearch input:focus{outline:none}
+.fsearch{flex:none;gap:6px;padding:5px 10px;color:var(--mut)}
+.fbar select+select{border-left:1px solid var(--line);border-radius:0}
+.fsearch svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+.fsearch span{display:grid}
+.fsearch input{border:0;padding:6px 2px;width:150px;background:transparent;transition:width .15s}
+.fsearch input:focus,.fsearch input:not(:placeholder-shown){width:220px}
+.qsm{width:180px}
+.fbar .ibtn{border:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ibtn.spin svg{animation:spin 1s linear infinite}
+@media(max-width:700px){.fbar select{border-left:0;flex:1}}
+@media(max-width:700px){.hm{display:none}main{padding:14px}.meta{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span class="isle sm i-acc" data-ico="net"></span>Monitoreo de Red</div>
+  <nav>
+    <button data-tab="resumen" class="on">Resumen</button>
+    <button data-tab="dispositivos">Dispositivos</button>
+    <button data-tab="objetivos">Internet y servicios</button>
+    <button data-tab="router" class="hide" id="navRouter">Router</button>
+    <button data-tab="eventos">Eventos</button>
+    <a href="/configuracion" class="navico" title="Configuración" aria-label="Configuración" data-ico="gear"></a>
+  </nav>
+  <div class="acct"><button id="acctBtn" title="Mi cuenta">…</button><div class="menu hide" id="acctMenu"></div></div>
+</header>
+
+<main>
+<!-- RESUMEN -->
+<section id="resumen">
+  <div class="banner ok" id="banner"><span class="isle i-ok" id="bIco" data-ico="check"></span>
+    <div><b id="bTitle">Cargando…</b><div class="sub" id="bText"></div></div></div>
+  <div id="netAlert" class="hide"></div>
+
+  <div class="grid" style="margin-top:14px;margin-bottom:4px">
+    <div class="card kpi click" id="kBadCard"><span class="isle i-ok" data-ico="devices" id="kBadIco"></span><div>
+      <h3>Equipos sin internet</h3><div class="big" id="kBad">–</div>
+      <div class="chips" id="kBadSub"></div></div></div>
+    <div class="card kpi click" id="kNetCard"><span class="isle i-vio" data-ico="globe" id="kNetIco"></span><div>
+      <h3>Internet</h3><div class="big" id="kNet">–</div>
+      <div class="sub" id="kNetSub"></div>
+      <div class="sub" id="kNetCuts" style="margin-top:4px"></div></div></div>
+    <div class="card kpi click" id="kSegCard"><span class="isle i-ok" data-ico="net" id="kSegIco"></span><div>
+      <h3>Segmentos sin internet</h3><div class="big" id="kSeg">–</div>
+      <div class="chips" id="kSegSub"></div></div></div>
+    <div class="card kpi click" id="kUnkCard"><span class="isle i-warn" data-ico="help"></span><div>
+      <h3>Por identificar</h3><div class="big" id="kUnk">–</div>
+      <div class="sub">sin nombre asignado</div></div></div>
+  </div>
+
+  <div id="rtBox" class="hide">
+    <h2 style="margin-bottom:10px">Router</h2>
+    <div class="card click" id="rtCard" style="margin-bottom:22px" title="Ver interfaces">
+      <div class="who"><span class="isle sm i-gray" data-ico="router" id="rtIco"></span><div><b id="rtName">–</b> <span class="sub" id="rtSub"></span></div></div>
+      <div class="mini">
+        <div><div class="lbl">Entrada</div><div class="val" id="rtIn">–</div></div>
+        <div><div class="lbl">Salida</div><div class="val" id="rtOut">–</div></div>
+        <div><div class="lbl">Interfaces arriba</div><div class="val" id="rtUp">–</div></div>
+        <div><div class="lbl">Con errores</div><div class="val" id="rtErr">–</div></div>
+      </div>
+    </div>
+  </div>
+
+  <h2 style="margin-bottom:10px">Esta Raspberry</h2>
+  <div class="card">
+    <div class="who"><span class="isle sm i-gray" data-ico="cpu"></span><div><b id="piName">–</b> <span class="sub" id="piUp"></span></div></div>
+    <div class="mini">
+      <div><div class="lbl">Procesador</div><div class="val" id="cpu">–</div><div class="bar"><i id="cpuBar"></i></div></div>
+      <div><div class="lbl">Memoria</div><div class="val" id="mem">–</div><div class="bar"><i id="memBar"></i></div></div>
+      <div><div class="lbl">Temperatura</div><div class="val" id="temp">–</div><div class="bar"><i id="tempBar"></i></div></div>
+      <div><div class="lbl">Disco</div><div class="val" id="disk">–</div><div class="bar"><i id="diskBar"></i></div></div>
+      <div><div class="lbl">Tráfico propio <span id="iface"></span></div><div class="val" style="font-size:14px">↓ <span id="rx">–</span> · ↑ <span id="tx">–</span></div><canvas id="cNet" style="height:34px"></canvas></div>
+    </div>
+  </div>
+
+  <h2>Últimos eventos</h2>
+  <div class="wrap" id="lastEv"></div>
+</section>
+
+<!-- DISPOSITIVOS -->
+<section id="dispositivos" class="hide">
+  <div class="fbar">
+    <label class="fsearch pill"><span data-ico="search"></span><input id="q" placeholder="Buscar"></label>
+    <div class="fgrp pill">
+    <select id="fSeg"><option value="">Todos los segmentos</option></select>
+    <select id="fEstado">
+      <option value="ok">Con internet</option>
+      <option value="" selected>Conectados</option>
+      <option value="gone" id="optGone">Desconectados</option>
+      <option value="nd">Internet desconocido</option>
+      <option value="noinet">Sin internet</option>
+      <option value="all">Todos</option>
+      <option value="unk" hidden>Por identificar</option>
+    </select>
+    <button class="ibtn" id="btnFold" title="Abrir todos" data-ico="unfold"></button>
+    <button class="ibtn pri w" id="btnScan" title="Escanear ahora" data-ico="refresh"></button>
+    </div>
+  </div>
+  <div id="devList"></div>
+</section>
+
+<!-- ROUTER (SNMP; solo si está configurado) -->
+<section id="router" class="hide">
+  <div id="rtHead"></div>
+  <h2 style="margin-bottom:10px">Internet</h2>
+  <div id="rtWan"></div>
+  <h2 style="margin-bottom:10px">Cables</h2>
+  <div class="grid" id="rtCables"></div>
+  <div class="sub" id="rtFoot" style="margin-top:12px"></div>
+</section>
+
+<!-- OBJETIVOS -->
+<section id="objetivos" class="hide">
+  <div class="card netnow" id="outKpis"></div>
+  <div class="card" style="margin:12px 0 22px">
+    <canvas id="outChart" style="height:90px"></canvas>
+    <div class="sub" id="outInfo" style="min-height:18px;margin-top:4px"></div>
+  </div>
+  <h2>Cortes</h2>
+  <div class="wrap" style="margin-bottom:22px"><table>
+    <thead><tr><th>Día</th><th>Hora</th><th>Duración</th></tr></thead>
+    <tbody id="outBody"></tbody>
+  </table></div>
+  <h2>Servicios</h2>
+  <div class="wrap"><table class="tgts"><tbody id="tgtBody"></tbody></table></div>
+  <details class="addt w">
+    <summary>Agregar servicio</summary>
+    <div class="toolbar">
+      <input id="tName" placeholder="Nombre (ej. Servidor)">
+      <input id="tHost" placeholder="IP o dominio">
+      <input id="tPort" type="number" placeholder="Puerto (vacío = ping)" style="width:180px">
+      <button class="btn" id="btnAddT">Agregar</button>
+    </div>
+  </details>
+</section>
+
+<!-- EVENTOS -->
+<section id="eventos" class="hide">
+  <div class="toolbar">
+    <input id="eQ" placeholder="Buscar" class="qsm">
+    <select id="eSeg"><option value="">Todos los segmentos</option></select>
+    <select id="eTipo">
+      <option value="">Todos los tipos</option>
+      <option value="imp">Caídas y cortes</option>
+      <option value="con">Conectado / desconectado</option>
+      <option value="new">Equipos nuevos</option>
+      <option value="info">Avisos</option>
+    </select>
+    <select id="eDias">
+      <option value="1">Hoy</option>
+      <option value="7" selected>7 días</option>
+      <option value="30">30 días</option>
+      <option value="365">1 año</option>
+    </select>
+  </div>
+  <div class="sub" id="evCount" style="margin:0 0 8px 2px"></div>
+  <div class="wrap" id="evList"></div>
+</section>
+
+<!-- CONFIGURACIÓN -->
+</main>
+<footer><span id="fNet">—</span><span id="fVer">Monitoreo de Red</span></footer>
+
+<div class="overlay hide" id="ov"><div class="drawer" id="drawer"></div></div>
+<div class="mov hide" id="mov"><div class="modal" id="modal"></div></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let targets = [], events = [], sys = {};
+let tab = 'resumen', detail = null;
+
+// ---------- íconos (trazos simples) ----------
+const ICO = {
+  net:'<circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="M12 7v5M12 12l-6 5M12 12l6 5"/>',
+  check:'<circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/>',
+  alert:'<path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17h.01"/>',
+  x:'<circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/>',
+  devices:'<rect x="3" y="4" width="13" height="10" rx="1.5"/><path d="M7 18h5M9.5 14v4"/><rect x="17" y="9" width="4" height="10" rx="1"/>',
+  pulse:'<path d="M3 12h4l2-5 4 10 2-5h6"/>',
+  globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/>',
+  help:'<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.7M12 17h.01"/>',
+  cpu:'<rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/>',
+  router:'<rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 16.5h.01M11 16.5h.01M8 9a6 6 0 0 1 8 0M5.5 6.5a10 10 0 0 1 13 0"/>',
+  printer:'<path d="M7 8V3h10v5"/><rect x="3" y="8" width="18" height="9" rx="2"/><path d="M7 14h10v7H7z"/>',
+  camera:'<rect x="3" y="6" width="13" height="10" rx="2"/><path d="M16 10l5-3v8l-5-3"/>',
+  phone:'<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>',
+  pc:'<rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/>',
+  laptop:'<rect x="5" y="5" width="14" height="10" rx="1.5"/><path d="M2 19h20"/>',
+  server:'<rect x="4" y="3" width="16" height="7" rx="1.5"/><rect x="4" y="14" width="16" height="7" rx="1.5"/><path d="M8 6.5h.01M8 17.5h.01"/>',
+  tv:'<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/>',
+  voip:'<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>',
+  chip:'<rect x="7" y="7" width="10" height="10" rx="1.5"/><path d="M10 3v4M14 3v4M10 17v4M14 17v4M3 10h4M3 14h4M17 10h4M17 14h4"/>',
+  chev:'<path d="M9 6l6 6-6 6"/>',
+  eth:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 19v-5h8v5M10 14v-3h4v3M9 17h.01M12 17h.01M15 17h.01"/>',
+  edit:'<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  trash:'<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+  close:'<path d="M6 6l12 12M18 6L6 18"/>',
+  search:'<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>',
+  refresh:'<path d="M20 11a8 8 0 0 0-14.9-4M4 4v4h4M4 13a8 8 0 0 0 14.9 4M20 20v-4h-4"/>',
+  unfold:'<path d="M7 9l5-5 5 5M7 15l5 5 5-5"/>',
+  fold:'<path d="M7 4l5 5 5-5M7 20l5-5 5 5"/>',
+  gear:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+  disk:'<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/>',
+};
+const ico = n => `<svg viewBox="0 0 24 24">${ICO[n] || ICO.help}</svg>`;
+function paintIcons(root=document){ root.querySelectorAll('[data-ico]').forEach(e => { if (!e.dataset.done || e.dataset.done !== e.dataset.ico) { e.innerHTML = ico(e.dataset.ico); e.dataset.done = e.dataset.ico; } }); }
+
+const KIND = {
+  router:['Router / puerta de enlace','router'], raspberry:['Raspberry Pi','chip'], impresora:['Impresora','printer'],
+  camara:['Cámara IP','camera'], 'telefono-ip':['Teléfono IP','voip'], iphone:['iPhone / iPad','phone'],
+  celular:['Celular','phone'], tv:['TV / Chromecast','tv'], nas:['Almacenamiento (NAS)','disk'], red:['Equipo de red','router'],
+  windows:['PC con Windows','pc'], mac:['Mac','laptop'], linux:['Linux / servidor','server'], iot:['Dispositivo inteligente (IoT)','chip'],
+  virtual:['Máquina virtual','server'], pc:['Computadora','pc'],
+};
+const kindName = k => (KIND[k] || ['Tipo desconocido'])[0];
+const kindIco = k => (KIND[k] || [0,'help'])[1];
+const PORTS = {21:'FTP',22:'SSH (acceso remoto Linux)',23:'Telnet (equipos viejos o de red)',53:'DNS',80:'Página web',135:'Servicios Windows',139:'Compartir archivos (NetBIOS)',
+  443:'Página web segura',445:'Carpetas compartidas Windows',515:'Impresión LPD',548:'Archivos de Apple',554:'Video de cámara (RTSP)',631:'Impresión IPP',
+  1883:'MQTT (IoT)',3389:'Escritorio remoto Windows',5000:'Web/Synology',5060:'Telefonía IP (SIP)',7000:'AirPlay (Apple)',8000:'Web/cámara Hikvision',
+  8008:'Chromecast',8009:'Chromecast',8080:'Página web alterna',8443:'Web segura alterna',9100:'Impresora (RAW)',37777:'Cámara Dahua',62078:'iPhone/iPad'};
+const HEALTH = {normal:'Normal', inestable:'Inestable', problema:'Problema', caido:'Caído', desconectado:'Desconectado', pendiente:'Revisando'};
+const RANK = {caido:0, problema:1, inestable:2, normal:3, pendiente:4, desconectado:5};
+
+// Rojo solo para pérdidas SUELTAS (responde, pierde uno, vuelve a responder).
+// Un tramo seguido sin respuesta (3 o más) es apagado/desconectado/no contesta:
+// se dibuja como hueco gris (-2), no en rojo.
+function softRuns(vals){
+  const out = vals.slice();
+  for (let i = 0; i < out.length; ) {
+    if (out[i] !== -1) { i++; continue; }
+    let j = i; while (j < out.length && out[j] === -1) j++;
+    if (j - i >= 3) for (let k = i; k < j; k++) out[k] = -2;
+    i = j;
+  }
+  return out;
+}
+const present = d => d.health !== 'desconectado';
+
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => go(b.dataset.tab));
+function go(t){
+  tab = t;
+  document.querySelectorAll('nav button').forEach(x => x.classList.toggle('on', x.dataset.tab === t));
+  document.querySelectorAll('main > section').forEach(s => s.classList.toggle('hide', s.id !== t));
+  render();
+  if (t === 'dispositivos') refresh(); // trae lo que haga falta para esa vista
+  if (t === 'eventos') loadEvents();
+}
+
+// cada petición tiene límite de 15 s: si una se cuelga, la página no se queda congelada
+const api = async (url, opt = {}) => {
+  const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 15000);
+  try { const r = await fetch(url, {...opt, signal: ctl.signal});
+    if (r.status === 401) { location.replace('/login'); throw new Error('sin sesión'); }
+    if (!r.ok) throw new Error((await r.text()).trim() || r.status);
+    return await r.json(); }
+  finally { clearTimeout(tm); }
+};
+const post = (url, body) => api(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: body ? JSON.stringify(body) : undefined});
+
+function fmtBytes(b){ if(!b) return '0 B'; const u=['B','KB','MB','GB','TB']; let i=0; while(b>=1024&&i<4){b/=1024;i++} return b.toFixed(i?1:0)+' '+u[i]; }
+function fmtAgo(t){ const d=(Date.now()-new Date(t))/1000; if(!t||d<0||isNaN(d)||String(t).startsWith('0001')) return '—';
+  if(d<60) return 'hace '+Math.floor(d)+' s'; if(d<3600) return 'hace '+Math.floor(d/60)+' min';
+  if(d<86400) return 'hace '+Math.floor(d/3600)+' h'; return 'hace '+Math.floor(d/86400)+' d'; }
+function fmtUp(s){ const d=Math.floor(s/86400), h=Math.floor(s%86400/3600), m=Math.floor(s%3600/60); return (d?d+' d ':'')+h+' h '+m+' min'; }
+function fmtMs(v, on){ if(!on) return '<span style="color:var(--bad)">sin respuesta</span>'; return v>0 ? v.toFixed(1)+' ms' : '<span class="sub">—</span>'; }
+const ARPTIP = 'No contesta ping (su firewall lo bloquea); se mide con una consulta ARP';
+function fmtLat(d){ return fmtMs(d.latencyMs, d.online); }
+function fmtDate(t){ return new Date(t).toLocaleString('es-MX', {dateStyle:'short', timeStyle:'medium'}); }
+// identificado = tiene nombre (puesto por ti o detectado en la red)
+const PRIV = 'MAC privada (aleatoria)';
+const ided = d => !!(d.known || d.name || d.hostname || d.netbios || d.mdns || (d.vendor && d.vendor !== PRIV));
+const devName = d => d.name || d.hostname || d.netbios || d.mdns || (d.vendor && d.vendor !== PRIV ? d.vendor : d.vendor === PRIV ? 'Celular (MAC privada)' : 'Sin nombre');
+
+function spark(canvas, series, colors){
+  series = series.map(softRuns);
+  const dpr = devicePixelRatio || 1, w = canvas.clientWidth, h = canvas.clientHeight;
+  if (!w) return;
+  canvas.width = w*dpr; canvas.height = h*dpr;
+  const c = canvas.getContext('2d'); c.scale(dpr, dpr); c.clearRect(0,0,w,h);
+  const max = Math.max(1, ...series.flat().filter(v => v >= 0)) * 1.1;
+  series.forEach((s, k) => {
+    if (s.length < 2) return;
+    const step = w / (s.length - 1);
+    c.strokeStyle = colors[k]; c.lineWidth = 1.6; c.beginPath();
+    let pen = false;
+    s.forEach((v, i) => {
+      const x = i*step;
+      if (v <= -2) { pen = false; return; } // desconectado: hueco
+      if (v === 0) { pen = false; c.fillStyle = '#2da44e'; c.fillRect(x-1, h-5, 2.5, 5); return; } // presente (se le escucha), sin latencia
+      if (v < 0) { pen = false; c.fillStyle = '#cf222e'; c.fillRect(x-1, h-5, 2.5, 5); return; } // perdido
+      const y = h - 2 - (v/max)*(h-6);
+      pen ? c.lineTo(x, y) : c.moveTo(x, y); pen = true;
+    });
+    c.stroke();
+  });
+}
+
+function evHTML(e){
+  // Caída = equipo fijo o segmento (grave) · Corte = volvió antes de 3 min (falla)
+  // Desconectado/Conectado = lo apagaron o se fue y volvió (normal, en gris)
+  const k = {new:'Nuevo', offline:'Caída', corte:'Corte', online:'Volvió', desconectado:'Desconectado', conectado:'Conectado', info:'Info'}[e.kind] || e.kind;
+  return `<div class="ev ${e.kind}"><time>${fmtDate(e.time)}</time><b>${k}</b><span>${esc(e.message)}</span></div>`;
+}
+
+// ---------- RESUMEN ----------
+const checked = t => t.lastCheck && !String(t.lastCheck).startsWith('0001');
+const sumSegs = f => segs.reduce((a, g) => a + f(g), 0);
+function renderResumen(){
+  const count = h => sumSegs(g => g.health[h] || 0);
+  // solo cuenta lo ya revisado: al arrancar la Pi aún no ha probado el internet
+  const inet = targets.filter(t => !t.port && /^(8\.8\.8\.8|1\.1\.1\.1)$/.test(t.host) && checked(t));
+  const inetOn = inet.filter(t => t.online);
+  const inetOk = !inet.length || inetOn.length > 0;
+
+  // ¿fallaron muchos equipos en el mismo chequeo? → problema general
+  const withHist = sumSegs(g => g.withHist), failedNow = sumSegs(g => g.failedNow);
+  const general = withHist >= 3 && failedNow / withHist >= 0.6;
+  let cls='ok', ic='check', title, text='';
+  if (general) { cls='bad'; ic='x'; title='Falla general';
+    text=`${failedNow} de ${withHist} equipos cayeron a la vez: revisa switch, router o cableado.`; }
+  // segmentos que cayeron completos de golpe
+  const down = segs.filter(g => g.down);
+  if (down.length) { // más preciso que "falla general": dice qué segmento
+    cls = 'bad'; ic = 'x';
+    title = down.length === 1 ? `${segName(down[0].seg)} sin respuesta` : `${down.length} segmentos sin respuesta`;
+    text = down.map(g => `${segName(g.seg)}: ${g.downCount} equipos cayeron a la vez ${fmtAgo(g.downSince)}`).join(' · ') + '. Revisa el switch, el cable o el router de ese segmento.';
+    if (DEMO) title = 'DEMOSTRACIÓN · ' + title;
+  }
+  // segmentos con equipos conectados pero SIN INTERNET → tarjeta roja propia
+  const noNetSegs = segs.filter(g => g.net === 'sin' && g.online > 0).sort((a, b) => b.online - a.online);
+  renderNetAlert(inetOk, noNetSegs);
+  const alerta = general || down.length > 0;
+  $('banner').className = 'banner '+cls + (alerta ? '' : ' hide'); $('bIco').className = 'isle i-'+cls; $('bIco').dataset.ico = ic;
+  $('bTitle').textContent = title; $('bText').textContent = text;
+
+  // equipos conectados SIN internet, de todos los conectados (el total crece al arrancar)
+  const onlineAll = sumSegs(g => g.online || 0);
+  const noNetDevs = sumSegs(g => g.net === 'sin' ? (g.online || 0) : 0);
+  $('kBad').textContent = `${noNetDevs} de ${onlineAll}`;
+  $('kBadIco').className = 'isle ' + (noNetDevs ? 'i-bad' : 'i-ok');
+  $('kBadCard').classList.toggle('alarmed', noNetDevs > 0);
+  const pend = count('pendiente');
+  $('kBadSub').innerHTML = (noNetDevs ? `<span class="st st-noinet">${noNetSegs.length} segmento${noNetSegs.length === 1 ? '' : 's'}</span>`
+    : '<span class="sub">todos con internet</span>') + (pend ? ` <span class="chip h-pendiente">revisando ${pend}…</span>` : '');
+  if (inet.length) {
+    $('kNet').innerHTML = inetOn.length ? '<span style="color:var(--ok)">Conectado</span>' : '<span style="color:var(--bad)">Sin conexión</span>';
+    const via = /^(eth|en)/.test(sys.iface||'') ? 'por cable' : 'por Wi‑Fi';
+    const cur = outages.find(o => !o.end);
+    $('kNetSub').textContent = inetOn.length ? `${via} · ${(inetOn.reduce((a,t)=>a+t.latencyMs,0)/inetOn.length).toFixed(0)} ms`
+      : `${via} · sin salida` + (cur ? ` desde ${fmtHour(cur.start)}` : '');
+  } else { $('kNet').textContent = '—'; $('kNetSub').textContent = ''; }
+  $('kNetCard').classList.toggle('alarmed', !inetOk);
+  $('kNetIco').className = 'isle ' + (inetOk ? 'i-vio' : 'i-bad');
+  const td = outStats(dayStart());
+  $('kNetCuts').innerHTML = td.n ? `<span class="st st-noinet">${td.n} corte${td.n === 1 ? '' : 's'} hoy</span> <span class="sub">${fmtSecs(td.secs)} sin internet</span>`
+    : '<span class="sub">sin cortes hoy</span>';
+  $('kUnk').textContent = sumSegs(g => g.unknown);
+
+  // segmentos sin internet o sin respuesta (siempre visible, aunque sean 0)
+  const segDown = segs.filter(g => g.down || (g.net === 'sin' && g.online > 0));
+  $('kSeg').textContent = `${segDown.length} de ${segs.length}`;
+  $('kSegIco').className = 'isle ' + (segDown.length ? 'i-bad' : 'i-ok');
+  $('kSegCard').classList.toggle('alarmed', segDown.length > 0);
+  const unverified = segs.filter(g => g.net === '?').length;
+  const unknownNet = segs.filter(g => g.net === 'nd' && g.seg !== '169.254').length;
+  $('kSegSub').innerHTML = (segDown.length
+    ? segDown.slice(0, 4).map(g => `<span class="st st-noinet click" onclick="event.stopPropagation();showSeg('${g.seg}')">${segName(g.seg)}</span>`).join('') + (segDown.length > 4 ? `<span class="sub">+${segDown.length-4}</span>` : '')
+    : '<span class="sub">' + (unknownNet ? 'ninguno confirmado' : 'todos con internet') + '</span>')
+    + (unknownNet ? ` <span class="sub">· ${unknownNet} desconocido${unknownNet === 1 ? '' : 's'}</span>` : '')
+    + (unverified ? ` <span class="sub">· ${unverified} sin verificar</span>` : '');
+
+  $('piName').textContent = sys.hostname || '–';
+  $('piUp').textContent = '· encendida ' + fmtUp(sys.uptime || 0);
+  const pct = (id, v, warn, badv) => { $(id).style.width = Math.min(100,v)+'%'; $(id).style.background = v>=badv?'var(--bad)':v>=warn?'var(--warn)':'var(--acc)'; };
+  $('cpu').textContent = (sys.cpu ?? 0).toFixed(0)+' %'; pct('cpuBar', sys.cpu||0, 70, 90);
+  const mp = sys.memTotal ? sys.memUsed/sys.memTotal*100 : 0; $('mem').textContent = mp.toFixed(0)+' %'; pct('memBar', mp, 80, 92);
+  const t = sys.tempC || 0; $('temp').textContent = t ? t.toFixed(0)+' °C' : 'n/d'; pct('tempBar', t/85*100, 65/85*100, 75/85*100);
+  const dp = sys.diskTotal ? sys.diskUsed/sys.diskTotal*100 : 0; $('disk').textContent = dp.toFixed(0)+' %'; pct('diskBar', dp, 80, 92);
+  $('iface').textContent = sys.iface ? `(${sys.iface})` : '';
+  $('rx').textContent = fmtBytes(sys.rxBps)+'/s'; $('tx').textContent = fmtBytes(sys.txBps)+'/s';
+  spark($('cNet'), [sys.rxHist || [], sys.txHist || []], ['#1a7f37', '#7b1e34']);
+  $('lastEv').innerHTML = events.slice(0, 8).map(evHTML).join('') || '<div class="ev sub">Sin eventos</div>';
+}
+const ipNum = ip => (ip||'').split('.').reduce((a,b) => a*256 + (+b||0), 0);
+
+// ---------- ALERTA DE INTERNET (tarjeta roja propia) ----------
+const fmtHour = t => new Date(t*1000).toLocaleTimeString('es-MX', {hour:'2-digit', minute:'2-digit'});
+const sinceTxt = iso => { const t = new Date(iso); return isNaN(t) || String(iso).startsWith('0001') ? '' : `desde ${fmtHour(t/1000)} · ${fmtAgo(iso)}`; };
+function renderNetAlert(inetOk, noNetSegs){
+  const el = $('netAlert');
+  const row = g => `<div class="arow" onclick="showSeg('${g.seg}')"><b>${segName(g.seg)}</b>
+      <span class="pill">${plural(g.online)} sin internet</span>
+      <span class="meta2">puerta ${esc(g.gateway || '?')}${sinceTxt(g.netSince) ? ' · ' + sinceTxt(g.netSince) : ''}</span></div>`;
+  let html = '';
+  if (!inetOk) {
+    // la Pi no tiene internet: solo se sabe del segmento de la Pi (y los de su mismo router)
+    const cur = outages.find(o => !o.end);
+    const piSeg = segOf(sys.ip || '');
+    const nd = segs.filter(g => g.net === 'nd' && g.seg !== '169.254').length;
+    html = `<div class="alarm"><div class="ahead"><span class="aico">${ico('globe')}</span><div>
+        <div class="atitle">SIN INTERNET</div>
+        <div class="asub">La red de la Raspberry (${segName(piSeg)}) no tiene salida a internet${cur ? ` desde ${fmtHour(cur.start)} · ${fmtSecs(Date.now()/1000 - cur.start)}` : ''}. La red local sí funciona.</div></div></div>
+      ${noNetSegs.length ? `<div class="arows">${noNetSegs.map(row).join('')}</div>` : ''}
+      ${nd ? `<div class="afoot">${nd} segmento${nd === 1 ? '' : 's'} de otros routers: internet desconocido (la Pi no puede probarlos mientras no tenga internet).</div>` : ''}
+    </div>`;
+  } else if (noNetSegs.length) {
+    const n = noNetSegs.reduce((a, g) => a + g.online, 0);
+    html = `<div class="alarm"><div class="ahead"><span class="aico">${ico('globe')}</span><div>
+        <div class="atitle">SIN INTERNET · ${noNetSegs.length === 1 ? '1 segmento' : noNetSegs.length + ' segmentos'}</div>
+        <div class="asub">${plural(n)} conectados al cable pero su puerta de enlace dejó de responder.</div></div></div>
+      <div class="arows">${noNetSegs.map(row).join('')}</div></div>`;
+  }
+  el.innerHTML = html; el.classList.toggle('hide', !html);
+}
+window.showSeg = s => {
+  $('fEstado').value = ''; $('q').value = '';
+  go('dispositivos'); renderSegSelect(); $('fSeg').value = s; renderDevices(); refresh();
+};
+
+// ---------- REGISTRO DE CORTES DE INTERNET ----------
+let outages = [];
+const dayStart = (daysAgo = 0) => { const d = new Date(); d.setHours(0,0,0,0); return d/1000 - daysAgo*86400; };
+const outDur = o => Math.max(0, (o.end || Date.now()/1000) - o.start);
+function outStats(since){ const l = outages.filter(o => o.start >= since); return {n: l.length, secs: l.reduce((a, o) => a + outDur(o), 0)}; }
+function fmtSecs(s){ s = Math.round(s); if (s < 60) return s + ' s'; if (s < 3600) return Math.floor(s/60) + ' min' + (s%60 ? ' ' + s%60 + ' s' : '');
+  return Math.floor(s/3600) + ' h ' + Math.floor(s%3600/60) + ' min'; }
+function renderOutages(){
+  const kp = [['Hoy', dayStart()], ['7 días', dayStart(6)], ['30 días', dayStart(29)]];
+  const cur = outages.find(o => !o.end);
+  const hm = t => new Date(t*1000).toLocaleTimeString('es-MX', {hour:'2-digit', minute:'2-digit'});
+  const day = t => { const d = new Date(t*1000), s = dayStart();
+    return t >= s ? 'Hoy' : t >= s - 86400 ? 'Ayer' : d.toLocaleDateString('es-MX', {weekday:'short', day:'numeric', month:'short'}); };
+  $('outKpis').classList.toggle('alarmed', !!cur);
+  $('outKpis').innerHTML = `<span class="isle i-${cur ? 'bad' : 'ok'}" data-ico="globe"></span>
+    <div><div class="big" style="color:var(--${cur ? 'bad' : 'ok'})">${cur ? 'Sin internet' : 'Con internet'}</div>
+      <div class="sub">${cur ? 'desde las ' + hm(cur.start) + ' · ' + fmtSecs(outDur(cur)) : (outages[0] ? 'último corte ' + fmtAgo(new Date(outages[0].start*1000)) : 'sin cortes registrados')}</div></div>
+    <div class="cnt">${kp.map(([l, since]) => `<div><b>${outStats(since).n}</b><span class="sub">${l}</span></div>`).join('')}</div>`;
+  $('outBody').innerHTML = outages.slice(0, 30).map(o => { const unk = o.end === o.start && o.note;
+    return `<tr><td>${day(o.start)}</td>
+      <td>${hm(o.start)}${o.end && !unk ? ' – ' + hm(o.end) : ''}</td>
+      <td>${!o.end ? '<span class="st st-noinet">sigue</span>' : unk ? `<span class="sub" title="${esc(o.note)}">no se sabe</span>` : fmtSecs(outDur(o))}</td></tr>`; }).join('')
+    || '<tr><td colspan="3" class="sub">Sin cortes registrados.</td></tr>';
+  paintIcons($('outKpis'));
+  drawOutChart();
+}
+function drawOutChart(){
+  const cv = $('outChart'); if (!cv || !cv.clientWidth) return;
+  const dpr = devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+  cv.width = W*dpr; cv.height = H*dpr; const c = cv.getContext('2d'); c.scale(dpr, dpr);
+  const days = [...Array(30)].map((_, i) => { const t0 = dayStart(29 - i), l = outages.filter(o => o.start >= t0 && o.start < t0 + 86400);
+    return {t0, n: l.length, secs: l.reduce((a, o) => a + outDur(o), 0)}; });
+  const max = Math.max(1, ...days.map(d => d.n)), B = 18, bw = W / 30;
+  c.font = '11px system-ui'; c.fillStyle = '#6b7785';
+  days.forEach((d, i) => {
+    const h = d.n / max * (H - B - 6), x = i*bw + 2;
+    c.fillStyle = d.n ? '#cf222e' : '#eef2f6'; c.fillRect(x, H - B - Math.max(2, h), bw - 4, Math.max(2, h));
+    if (i % 5 === 4 || i === 29) { c.fillStyle = '#6b7785'; const s = new Date(d.t0*1000).toLocaleDateString('es-MX', {day:'numeric', month:'short'}); c.fillText(s, Math.min(x, W - c.measureText(s).width), H - 4); }
+  });
+  const info = $('outInfo');
+  info.textContent = 'Cortes por día, últimos 30 días';
+  cv.onmouseleave = () => { info.textContent = 'Cortes por día, últimos 30 días'; };
+  cv.onmousemove = e => { const i = Math.min(29, Math.max(0, Math.floor((e.clientX - cv.getBoundingClientRect().left) / bw))), d = days[i];
+    info.textContent = `${new Date(d.t0*1000).toLocaleDateString('es-MX', {weekday:'long', day:'numeric', month:'long'})}: ` + (d.n ? `${d.n} corte${d.n === 1 ? '' : 's'} · ${fmtSecs(d.secs)} sin internet` : 'sin cortes'); };
+}
+
+// ---------- DISPOSITIVOS ----------
+// segmento de una IP: "192.168.10.x" → "10"; 169.254 = equipos sin IP
+const segOf = ip => { const p = (ip||'').split('.'); return p[0]==='169' && p[1]==='254' ? '169.254' : p[0]==='192' && p[1]==='168' ? p[2] : p.slice(0,3).join('.'); };
+const segName = s => { const n = (segs.find(g => g.seg === s) || {}).name;
+  return s === '169.254' ? 'Sin IP (169.254)' : n ? `${n} (${s})` : /^\d+$/.test(s) ? `Segmento ${s}` : `Segmento ${s}.x`; };
+const segNum = s => s === '169.254' ? 1e9 : /^\d+$/.test(s) ? +s : ipNum(s+'.0');
+// Datos por segmento: solo se bajan los segmentos abiertos (con 800 equipos,
+// bajar todo cada 5 s hacía lenta la página)
+let segs = [], segData = {}, openSegs = new Set(), liteAll = null, devIndex = {};
+const segsSorted = () => [...segs].sort((a,b) => segNum(a.seg)-segNum(b.seg));
+const filterMode = () => !!($('q').value.trim() || $('fEstado').value);
+function renderSegSelect(){
+  const sel = $('fSeg'), cur = sel.value, list = segsSorted();
+  sel.innerHTML = `<option value="">Todos los segmentos (${list.length})</option>` +
+    list.map(g => `<option value="${g.seg}">${segName(g.seg)} (${g.present})</option>`).join('');
+  sel.value = list.some(g => g.seg === cur) ? cur : '';
+}
+window.toggleSeg = async s => {
+  if (openSegs.has(s)) { openSegs.delete(s); renderDevices(); return; }
+  openSegs.add(s); renderDevices();
+  if (!filterMode() && !segData[s]) { await loadSeg(s); renderDevices(); }
+};
+async function loadSeg(s){
+  try { segData[s] = await api('/api/devices?seg=' + encodeURIComponent(s)); } catch {}
+  indexDevs();
+}
+function indexDevs(){
+  devIndex = {};
+  [liteAll || [], ...Object.values(segData)].forEach(l => l.forEach(d => { devIndex[d.id] = d; }));
+}
+const plural = n => n + (n === 1 ? ' equipo' : ' equipos');
+const segRange = s => s === '169.254' ? '169.254.x.x' : /^\d+$/.test(s) ? `192.168.${s}.x` : `${s}.x`;
+const COLS = '<thead><tr><th>Estado</th><th>Equipo</th><th>IP</th><th>Cable</th><th>Internet</th><th>Latencia</th></tr></thead>';
+
+// ---------- los 3 estados ----------
+// Conectado (cable verde, internet verde) · Sin internet (verde, rojo) · Desconectado (gris, gris)
+const segNetOf = ip => (segs.find(g => g.seg === segOf(ip)) || {}).net || '?';
+function devState(d){
+  if (d.health === 'pendiente') return 'pend';
+  if (!d.online) return 'off';
+  const n = segNetOf(d.ip);
+  return n === 'sin' ? 'noinet' : n === 'ok' ? 'ok' : 'unk';
+}
+const STATE = {ok:['Conectado','ok'], noinet:['Sin internet','noinet'], off:['Desconectado','off'], pend:['Revisando','pend'], unk:['Conectado','ok']};
+const stateChip = d => { const [t, c] = STATE[devState(d)]; return `<span class="st st-${c}">${t}</span>`; };
+function icons(d){
+  const s = devState(d);
+  const cable = s === 'off' || s === 'pend' ? 'off' : 'ok';
+  const inet = s === 'ok' ? 'ok' : s === 'noinet' ? 'bad' : s === 'unk' ? 'unk' : 'off';
+  const nd = s === 'unk' && segNetOf(d.ip) === 'nd';
+  const tip = {ok:'Internet: bien', bad:'Internet: SIN salida en su segmento',
+    unk: nd ? 'Internet: desconocido (la Pi no tiene internet y este segmento sale por otro router)' : 'Internet: sin verificar (aún no se encontró la puerta de enlace de su segmento)',
+    off:'Internet: —'}[inet];
+  return [`<span class="ind ind-${cable}" title="Cable: ${cable === 'ok' ? 'conectado' : 'sin respuesta'}">${ico('eth')}</span>`,
+          `<span class="ind ind-${inet}" title="${tip}">${ico('globe')}</span>`];
+}
+
+// tarjeta de un segmento: conectados / desconectados e internet del segmento
+function segCard(g, h, n, open, body){
+  const on = g.online ?? ((h.normal||0) + (h.inestable||0) + (h.problema||0));
+  const off = h.desconectado || 0, pend = h.pendiente || 0;
+  const total = Math.max(1, on + off + pend);
+  const noNet = g.net === 'sin';
+  const bar = (on ? `<i class="${noNet ? 'b-noinet' : 'b-normal'}" style="width:${(on/total*100).toFixed(1)}%"></i>` : '')
+    + (pend ? `<i class="b-pendiente" style="width:${(pend/total*100).toFixed(1)}%"></i>` : '')
+    + (off ? `<i class="b-off" style="width:${(off/total*100).toFixed(1)}%"></i>` : '');
+  const netChip = noNet ? '<span class="st st-noinet">Sin internet</span>' : g.net === 'ok' ? '<span class="st st-ok">Internet OK</span>'
+    : g.net === 'nd' ? (g.seg === '169.254' ? '' : '<span class="st st-pend" title="La Pi no tiene internet y este segmento sale por otro router">Internet no se sabe</span>')
+    : g.gwDead ? `<span class="st st-off" title="La puerta ${esc(g.gateway)} nunca ha contestado">Puerta no responde</span>`
+    : '<span class="st st-pend">Internet sin verificar</span>';
+  const fails = netChip + (pend ? `<span class="chip h-pendiente">revisando ${pend}…</span>` : '');
+  const state = noNet || g.down ? 'bad' : 'ok';
+  return `<div class="segcard${open ? ' open' : ''}${g.down ? ' down' : ''}">
+    <div class="seghead" onclick="toggleSeg('${g.seg}')">
+      <span class="chev">${ico('chev')}</span>
+      <span class="isle sm i-${state}">${ico('net')}</span>
+      <div class="segname"><b>${segName(g.seg)}</b><span class="sub">${[g.location ? esc(g.location) : '', g.gateway ? 'puerta .' + esc(g.gateway.split('.').pop()) : ''].filter(Boolean).join(' · ') || segRange(g.seg)}</span></div>
+      <div class="segcount"><b>${on}</b><span class="sub">conectados</span>${off ? `<span class="sub">· ${off} desconectados</span>` : ''}</div>
+      <div class="segbar" title="Conectados / desconectados">${bar}</div>
+      <div class="chips">${g.down ? '<span class="st st-noinet">SIN RESPUESTA</span>' : ''}${fails}</div>
+    </div>
+    ${open ? `<div class="segbody">${body}</div>` : ''}
+  </div>`;
+}
+const table = rows => `<div class="wrap"><table>${COLS}<tbody>${rows}</tbody></table></div>`;
+
+function renderDevices(){
+  renderSegSelect();
+  // la Pi ya manda cada lista filtrada (sin desconectados) y ordenada: aquí solo se dibuja
+  const seg = $('fSeg').value;
+  const list = segsSorted().filter(g => !seg || g.seg === seg);
+  let html = '', shown = 0;
+  if (filterMode()) {
+    // búsqueda o filtro: mismos segmentos colapsables, con solo los equipos que coinciden
+    if (!liteAll) html = '<div class="sub" style="padding:12px">Buscando en todos los segmentos…</div>';
+    else {
+      const groups = list.map(g => ({g, rows: liteAll.filter(d => segOf(d.ip) === g.seg)})).filter(x => x.rows.length);
+      shown = groups.length;
+      groups.forEach(({g, rows}) => {
+        const h = {}; rows.forEach(d => { h[d.health] = (h[d.health]||0) + 1; });
+        const open = groups.length === 1 || openSegs.has(g.seg); // si solo hay uno, se abre solo
+        html += segCard({...g, online: rows.filter(d => d.online).length}, h, rows.length, open, open ? table(rows.map(rowHTML).join('')) : '');
+      });
+      if (!groups.length) html = '<div class="sub" style="padding:12px">Ningún equipo coincide.</div>';
+    }
+  } else {
+    shown = list.length;
+    list.forEach(g => {
+      const open = !!seg || openSegs.has(g.seg);
+      const data = segData[g.seg];
+      const body = !data ? '<div class="sub" style="padding:12px">Cargando…</div>'
+        : data.length ? table(data.map(rowHTML).join('')) : '<div class="sub" style="padding:12px">Sin equipos conectados</div>';
+      html += segCard(g, g.health, g.present, open, body);
+    });
+  }
+  $('devList').innerHTML = html || '<div class="sub" style="padding:12px">Sin dispositivos.</div>';
+  document.querySelectorAll('#devList canvas').forEach(c => { const d = devIndex[c.dataset.id]; if (d && d.history) spark(c, [d.history.map(p=>p.ms)], ['#1a7f37']); });
+  // botón abrir/cerrar todos: solo si hay más de un segmento en pantalla
+  // (abrir todos solo en búsqueda/filtro: ahí ya están los datos)
+  const anyOpen = openSegs.size > 0;
+  $('btnFold').title = anyOpen ? 'Cerrar todos' : 'Abrir todos'; $('btnFold').dataset.ico = anyOpen ? 'fold' : 'unfold'; paintIcons($('btnFold').parentNode);
+  $('btnFold').classList.toggle('hide', shown < 2 || (!anyOpen && !filterMode()));
+  $('optGone').textContent = `Desconectados (${sumSegs(g => g.health.desconectado || 0)})`;
+  $('btnScan').disabled = !!sys.scanning; $('btnScan').classList.toggle('spin', !!sys.scanning); $('btnScan').title = sys.scanning ? 'Escaneando…' : 'Escanear ahora';
+}
+function rowHTML(d){
+  return `
+    <tr class="click" onclick="openDev('${d.id}')">
+      <td>${stateChip(d)}</td>
+      <td><div class="who"><span class="isle sm i-gray" data-ico="${kindIco(d.kind)}"></span><div><b>${esc(devName(d))}</b>${ided(d)?'':' <span class="tag new">por identificar</span>'}<div class="sub">${kindName(d.kind)}${d.alias ? ' · otra IP del mismo equipo' : ''}</div></div></div></td>
+      <td class="mono">${esc(d.ip)}</td>
+      <td>${icons(d)[0]}</td>
+      <td>${icons(d)[1]}</td>
+      <td>${d.online ? fmtLat(d) : '<span class="sub">—</span>'}</td>
+    </tr>`;
+}
+let qTimer;
+$('q').oninput = () => { clearTimeout(qTimer); qTimer = setTimeout(refresh, 350); renderDevices(); };
+$('fEstado').onchange = $('fSeg').onchange = () => { renderDevices(); refresh(); };
+$('btnFold').onclick = () => {
+  if (openSegs.size) openSegs.clear();
+  else if (liteAll) liteAll.forEach(d => openSegs.add(segOf(d.ip)));
+  renderDevices();
+};
+$('btnScan').onclick = async () => { await post('/api/scan'); sys.scanning = true; renderDevices(); setTimeout(refresh, 1500); };
+$('kUnkCard').onclick = () => { $('fEstado').value = 'unk'; go('dispositivos'); };
+$('kSegCard').onclick = () => { $('fEstado').value = ''; $('q').value = ''; go('dispositivos'); };
+$('kBadCard').onclick = () => { $('fEstado').value = 'noinet'; go('dispositivos'); };
+$('kNetCard').onclick = () => go('objetivos');
+
+// ---------- DETALLE / CÓMO IDENTIFICARLO ----------
+let hRange = '1h', hData = [];
+let detailSeg = null;
+window.openDev = id => {
+  detail = id; hRange = '1h'; hData = [];
+  const d = devIndex[id]; detailSeg = d ? segOf(d.ip) : null;
+  rtDev = null; renderDetail(); $('ov').classList.remove('hide'); loadHist(); loadRtDev();
+  if (detailSeg && !segData[detailSeg]) loadSeg(detailSeg).then(renderDetail); // trae sus datos completos
+};
+$('ov').onclick = e => { if (e.target === $('ov')) closeDev(); };
+window.closeDev = () => { detail = null; rtDev = null; $('ov').classList.add('hide'); };
+
+// cable e internet del equipo según el router (SNMP); solo equipos de las redes del router
+let rtDev = null;
+async function loadRtDev(){
+  const d = devIndex[detail];
+  if (!d || !rt.activo) { rtDev = null; return; }
+  try { const r = await api('/api/snmp/equipo?ip=' + encodeURIComponent(d.ip)); if (detail === d.id) rtDev = {ip: d.ip, ...r}; } catch {}
+  if ($('rtDevBox')) $('rtDevBox').innerHTML = rtDevHTML(devIndex[detail]);
+}
+function rtDevHTML(d){
+  const r = rtDev;
+  if (!d || !r || r.ip !== d.ip || !r.activo) return '';
+  if (r.sinRespuesta) return ''; // solo se muestra lo que es de este equipo
+  // único dato propio del equipo: si el router lo tiene en su tabla ARP y con qué MAC
+  const mac = (d.mac || '').toLowerCase();
+  const arp = !r.enARP ? '<span class="sub">no está en su tabla ARP</span>'
+    : r.mac === mac ? '<span style="color:var(--ok)">lo ve</span>'
+    : `<span style="color:var(--warn)">lo tiene con otra MAC: ${esc(r.mac)}</span>`;
+  return `<div class="kv" style="margin-top:-6px"><div>${esc(r.router)}</div><div>${arp}</div></div>`;
+}
+
+// (la Configuración ahora es /configuracion, hecha con Go + htmx)
+const xBtn = `<button class="ibtn" title="Cerrar" onclick="closeModal()">${ico('close')}</button>`;
+const PERFIL = {admin: 'Administrador', operador: 'Operador', consulta: 'Consulta'};
+// ---------- router por SNMP (solo si está configurado en la Pi) ----------
+let rt = {activo: false};
+const mbps = v => v >= 100 ? `${Math.round(v)} Mb/s` : `${(v || 0).toFixed(1)} Mb/s`;
+const spd = v => !v ? '—' : v >= 1000 ? `${v / 1000} Gb/s` : `${v} Mb/s`;
+function renderRouter(){
+  $('rtBox').classList.toggle('hide', !rt.activo);
+  if (!rt.activo) return;
+  const noNet = rt.inet && (rt.inet.estado === 'sin' || rt.inet.estado === 'cable');
+  const bad = rt.sinRespuesta || noNet, warn = !bad && (rt.conErrores > 0 || rt.caidas > 0 || (rt.inet && rt.inet.estado === 'sospecha'));
+  $('rtIco').className = 'isle sm ' + (bad ? 'i-bad' : warn ? 'i-warn' : 'i-ok');
+  $('rtName').textContent = rt.nombre + (rt.sysName ? ' · ' + rt.sysName : '');
+  $('rtSub').textContent = rt.sinRespuesta ? 'no responde por SNMP' : noNet ? 'sin internet' : rt.error ? rt.error
+    : `${rt.ip}${rt.principal ? ' · tráfico de ' + rt.principal : ''}`;
+  $('rtCard').classList.toggle('alarmed', !!bad);
+  const ok = !rt.sinRespuesta && rt.ultimo;
+  $('rtIn').textContent = ok ? '↓ ' + mbps(rt.entradaMbps) : '–';
+  $('rtOut').textContent = ok ? '↑ ' + mbps(rt.salidaMbps) : '–';
+  $('rtUp').innerHTML = ok ? `${rt.arriba} <span class="sub">de ${rt.total}</span>` +
+    (rt.caidas ? ` <span style="color:var(--bad);font-size:13px">· ${rt.caidas} caída${rt.caidas === 1 ? '' : 's'}</span>` : '') : '–';
+  $('rtErr').innerHTML = ok ? (rt.conErrores ? `<span style="color:var(--warn)">${rt.conErrores}</span>` : '0') : '–';
+}
+// pestaña Router: internet (puerto de la ruta por omisión) y cada cable con cuánto internet se lleva
+function renderRouterTab(){
+  const bad = rt.sinRespuesta, ifs = (rt.interfaces || []).filter(f => f.habilitada);
+  const up = !rt.uptime ? '' : rt.uptime >= 86400 ? `${Math.floor(rt.uptime / 86400)} días` : `${Math.floor(rt.uptime / 3600)} h ${Math.floor(rt.uptime % 3600 / 60)} min`;
+  $('rtHead').innerHTML = `<div class="card${bad ? ' alarmed' : ''}"><div class="who">
+      <span class="isle sm ${bad ? 'i-bad' : 'i-ok'}" data-ico="router"></span>
+      <div><b>${esc(rt.nombre)}${rt.sysName ? ' · ' + esc(rt.sysName) : ''}</b> <span class="sub">${esc(rt.ip)}</span>
+      <div class="sub">${bad ? 'no responde por SNMP' : rt.error ? esc(rt.error) : esc((rt.sysDescr || '').slice(0, 60)) + (up ? ' · encendido ' + up : '')}</div></div></div></div>`;
+  const ok = !bad && rt.ultimo;
+  const v = x => ok ? x : '–';
+  const est = f => f.arriba ? `<span style="color:var(--ok)">● arriba</span> · ${spd(f.velocidad)}` : f.caida ? '<span style="color:var(--bad)">● caída</span>' : '<span class="sub">● sin cable</span>';
+  const errs = f => f.conErrores ? `<span style="color:var(--warn)">${f.errores ? f.errores + ' en 30 s' : 'en los últimos 10 min'}</span>` : '0';
+  const wan = ifs.find(f => f.internet);
+  const fast = rt.inet && rt.inet.rapida; // lectura de 5 s
+  $('rtWan').innerHTML = !wan ? '<div class="card sub">El router no dice por cuál puerto sale a internet.</div>'
+    : `<div class="card"><div class="who"><span class="isle sm i-vio" data-ico="globe"></span><div><b>${esc(wan.nombre)}</b>${wan.alias && wan.alias !== wan.nombre ? ' · ' + esc(wan.alias) : ''} <span class="sub">${est(wan)}</span>
+        </div></div>
+      <div class="mini">
+        <div><div class="lbl">Bajada</div><div class="val">${v('↓ ' + mbps(fast ? rt.inet.bajada : wan.entrada))}</div></div>
+        <div><div class="lbl">Subida</div><div class="val">${v('↑ ' + mbps(fast ? rt.inet.subida : wan.salida))}</div></div>
+        <div><div class="lbl">Errores</div><div class="val">${v(errs(wan))}</div></div>
+      </div>${inetLine()}${segList(wan)}</div>`;
+  // cables: todos menos el de internet; los internos del router (sin red, sin equipos, sin velocidad) no se muestran
+  const cables = ifs.filter(f => f !== wan && (f.segmentos || f.equipos || f.velocidad));
+  const tot = wan ? wan.entrada : 0;
+  $('rtCables').innerHTML = cables.map(f => {
+    // lo que el router manda por el cable es lo que bajan sus equipos; lo que recibe, lo que suben
+    const pct = f.arriba && tot > 0 ? Math.min(100, Math.round(f.salida / tot * 100)) : 0;
+    return `<div class="card"${f.arriba ? '' : ' style="opacity:.6"'}>
+      <div class="who"><span class="isle sm ${f.caida ? 'i-bad' : f.arriba ? 'i-ok' : 'i-gray'}" data-ico="eth"></span>
+        <div><b>${esc(f.nombre)}</b>${f.alias && f.alias !== f.nombre ? ' · ' + esc(f.alias) : ''}<div class="sub">${est(f)}</div></div></div>
+      <div class="kv" style="grid-template-columns:110px 1fr;margin:12px 0 0">
+        <div>Equipos</div><div>${f.equipos || 0}</div>
+        <div>Internet</div><div>${f.arriba ? v(`↓ ${mbps(f.salida)} &nbsp;↑ ${mbps(f.entrada)}`) : '—'}</div>
+        <div>Errores</div><div>${f.arriba ? v(errs(f)) : '—'} ${f.erroresTotal ? `<span class="sub">· ${f.erroresTotal.toLocaleString('es-MX')} acumulados</span>` : ''}</div>
+      </div>
+      ${f.arriba && tot > 0 ? `<div class="bar" style="margin-top:10px" title="${pct} % de la bajada de internet"><i style="width:${pct}%"></i></div>
+        <div class="sub" style="margin-top:4px">${pct} % de lo que baja de internet</div>` : ''}
+      ${segList(f)}
+    </div>`;
+  }).join('') || '<div class="card sub">Sin cables con datos todavía</div>';
+  $('rtFoot').textContent = 'Datos del router por SNMP cada 30 s. "Equipos" son los que el router tiene en su tabla ARP por ese cable.';
+  paintIcons($('router'));
+}
+$('rtCard').onclick = () => go('router');
+// estado del internet del router por tráfico (lectura rápida de 5 s)
+function inetLine(){
+  const x = rt.inet || {};
+  if (!x.rapida || rt.sinRespuesta) return '';
+  const hora = x.desde ? new Date(x.desde).toLocaleTimeString('es-MX', {hour: '2-digit', minute: '2-digit'}) : '';
+  const m = {
+    ok: ['var(--ok)', 'Con internet'],
+    sospecha: ['var(--warn)', 'Revisando: casi no regresa tráfico de internet'],
+    sin: ['var(--bad)', 'Sin internet'],
+    cable: ['var(--bad)', 'Sin internet: puerto de internet abajo'],
+  }[x.estado] || ['var(--mut)', 'Midiendo…'];
+  return `<div style="margin-top:12px;padding:8px 10px;border-radius:10px;background:var(--bg,#f6f7f9)">
+    <b style="color:${m[0]}">● ${m[1]}</b>${hora && x.estado !== 'ok' ? ` <span class="sub">desde ${hora}</span>` : ''}
+    ${x.motivo ? `<div class="sub" style="margin-top:2px">${esc(x.motivo)}</div>` : ''}
+    <div class="sub" style="margin-top:2px">Cada 5 s: equipos → router ${mbps(x.local)} · regresa de internet ${mbps(x.bajada)}${x.horario ? '' : ' · fuera de horario solo se vigila el puerto'}</div></div>`;
+}
+// segmentos de un cable: cada uno abre la lista de sus equipos (tabla ARP del router)
+function segList(f){
+  if (!f.segmentos) return '';
+  return `<div class="sub" style="margin:14px 0 6px">Segmentos</div><div class="rtsegs">` + f.segmentos.map(g =>
+    `<button class="rtseg" onclick="openRtSeg('${esc(g.red)}','${esc(g.router || '')}')">
+      <b>${esc(g.red)}</b><span class="sub">${g.router ? 'puerta ' + esc(g.router) : 'ruta directa'}</span>
+      <span class="n">${g.equipos} ${g.equipos === 1 ? 'equipo' : 'equipos'}</span><span class="chev">${ico('chev')}</span></button>`).join('') + '</div>';
+}
+window.openRtSeg = async (red, gw) => {
+  $('modal').innerHTML = `<div class="mh"><h3>${esc(red)} <span class="sub">${gw ? 'puerta ' + esc(gw) : 'ruta directa'}</span></h3>
+      <button class="ibtn" title="Cerrar" onclick="closeModal()">${ico('close')}</button></div>
+    <div id="rtSegBody" class="sub">Cargando…</div>`;
+  $('modal').style.width = 'min(720px,100%)';
+  $('mov').classList.remove('hide');
+  let l = [];
+  try { l = await api('/api/snmp/equipos?red=' + encodeURIComponent(red)); } catch { $('rtSegBody').textContent = 'No se pudo leer.'; return; }
+  $('rtSegBody').className = '';
+  $('rtSegBody').innerHTML = !l.length ? '<div class="sub">El router no tiene equipos de este segmento en su tabla ARP.</div>'
+    : `<div class="sub" style="margin-bottom:8px">${plural(l.length)} en la tabla ARP del router</div>
+      <div style="overflow:auto;max-height:60vh"><table style="width:100%;font-size:13px;white-space:nowrap"><thead><tr><th>IP</th><th>Equipo</th><th>MAC</th><th>Fabricante</th></tr></thead><tbody>` +
+      l.map(x => `<tr${x.id ? ` class="click" style="cursor:pointer" onclick="openFromRouter('${esc(x.id)}','${esc(x.ip)}')"` : ''}>
+        <td class="mono">${esc(x.ip)}</td><td>${x.nombre ? esc(x.nombre) : '<span class="sub">—</span>'}</td>
+        <td class="mono">${esc(x.mac)}</td><td>${x.fabricante ? esc(x.fabricante) : '<span class="sub">—</span>'}</td></tr>`).join('') +
+      '</tbody></table></div>';
+};
+window.openFromRouter = async (id, ip) => { closeModal(); await loadSeg(segOf(ip)); openDev(id); };
+
+window.closeModal = () => { $('mov').classList.add('hide'); $('modal').style.width = ''; };
+$('mov').onclick = e => { if (e.target === $('mov')) closeModal(); };
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+window.setRange = r => { hRange = r; loadHist(); };
+async function loadHist(){
+  if (!detail) return;
+  try { hData = await api(`/api/history?mac=${encodeURIComponent(detail)}&range=${hRange}`); } catch { hData = []; }
+  // tramos seguidos sin respuesta → gris (no rojo); rojo solo pérdidas sueltas
+  if (hRange === '1h') {
+    const soft = softRuns(hData.map(p => p.avg));
+    hData.forEach((p, i) => { if (soft[i] === -2 && p.avg === -1) { p.avg = -2; p.loss = 0; } });
+  } else {
+    hData.forEach(p => { if (p.loss >= 100) { p.avg = -2; p.loss = 0; } }); // media hora entera sin respuesta
+  }
+  drawBig();
+}
+
+// gráfica grande: latencia (línea), máximo (sombra) y pérdidas (barras rojas)
+function drawBig(){
+  const cv = $('bigChart'), info = $('bigInfo'); if (!cv) return;
+  document.querySelectorAll('.rng').forEach(b => b.classList.toggle('on', b.dataset.r === hRange));
+  const dpr = devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+  cv.width = W*dpr; cv.height = H*dpr;
+  const c = cv.getContext('2d'); c.scale(dpr, dpr); c.clearRect(0,0,W,H);
+  const L = 44, R = 8, T = 8, B = 22, w = W-L-R, h = H-T-B;
+  c.font = '11px system-ui'; c.fillStyle = '#6b7785'; c.strokeStyle = '#eef2f6'; c.lineWidth = 1;
+  if (!hData.length) { c.fillText('Aún no hay datos para este periodo', L, T+h/2); info.textContent = ''; return; }
+  const max = Math.max(1, ...hData.map(p => p.max)) * 1.15;
+  for (let k = 0; k <= 3; k++) {
+    const y = T + h - h*k/3;
+    c.beginPath(); c.moveTo(L, y); c.lineTo(L+w, y); c.stroke();
+    c.fillText((max*k/3).toFixed(max < 10 ? 1 : 0) + ' ms', 2, y+4);
+  }
+  // ventana fija (última hora, 24 h o 7 días hasta ahora): con pocos puntos no se estira
+  const step = hRange === '1h' ? 30 : 1800;
+  const span = {'1h': 3600, '24h': 86400, '7d': 7*86400}[hRange] || 3600;
+  const t1 = Date.now() / 1000, t0 = t1 - span;
+  const X = t => L + Math.max(0, t - t0) / span * w, Y = v => T + h - v / max * h;
+  const fmtT = t => new Date(t*1000).toLocaleString('es-MX', hRange === '7d' ? {weekday:'short', hour:'2-digit', minute:'2-digit'} : {hour:'2-digit', minute:'2-digit'});
+  [t0, t0+span/2, t1].forEach(t => { const s = fmtT(t), tw = c.measureText(s).width; c.fillText(s, Math.min(Math.max(X(t)-tw/2, L), L+w-tw), H-6); });
+  // pérdidas: franja roja delgada abajo (no a todo lo alto), más intensa con más pérdida
+  const bw = Math.max(2, step / span * w);
+  hData.forEach(p => {
+    if (p.loss > 0) { c.fillStyle = 'rgba(207,34,46,' + (0.35 + p.loss/160) + ')'; c.fillRect(X(p.t)-bw/2, T+h-7, bw, 7); } // perdido
+    else if (p.avg === 0) { c.fillStyle = 'rgba(45,164,78,.75)'; c.fillRect(X(p.t)-bw/2, T+h-7, bw, 7); }      // presente, sin latencia
+  });
+  if (hRange !== '1h') {
+    c.fillStyle = 'rgba(123,30,52,.10)'; c.beginPath(); let started = false;
+    hData.forEach(p => { if (p.avg <= 0) return; const x = X(p.t); started ? c.lineTo(x, Y(p.max)) : (c.moveTo(x, Y(p.max)), started = true); });
+    [...hData].reverse().forEach(p => { if (p.avg >= 0) c.lineTo(X(p.t), Y(p.avg)); });
+    c.fill();
+  }
+  // la línea se corta donde no hay datos (equipo desconectado o apagado)
+  c.strokeStyle = '#7b1e34'; c.lineWidth = 1.6; c.beginPath(); let pen = false, prevT = 0;
+  hData.forEach(p => {
+    if (p.avg < 0 || p.t - prevT > step * 2.5) pen = false;
+    prevT = p.t;
+    if (p.avg <= 0) { if (p.avg === 0) pen = false; return; } // 0 = presente sin latencia: no va en la línea
+    const x = X(p.t), y = Y(p.avg); pen ? c.lineTo(x, y) : c.moveTo(x, y); pen = true;
+  });
+  c.stroke();
+  const lost = hData.reduce((a,p) => a + (p.loss > 0 ? 1 : 0), 0);
+  // tramos desconectado (sin datos): se marcan con fondo gris claro
+  c.fillStyle = 'rgba(148,163,184,.12)'; let gs = null;
+  hData.forEach((p, i) => {
+    const off = p.avg <= -2 || (i > 0 && p.t - hData[i-1].t > step * 2.5);
+    if (off && gs === null) gs = i > 0 ? X(hData[i-1].t) : X(p.t);
+    if (!off && gs !== null) { c.fillRect(gs, T, X(p.t) - gs, h); gs = null; }
+    if (off && i === hData.length - 1) c.fillRect(gs, T, X(p.t) - gs, h);
+  });
+  const ok = hData.filter(p => p.avg > 0), avg = ok.length ? ok.reduce((a,p) => a+p.avg, 0)/ok.length : 0;
+  info.textContent = !ok.length && hData.some(p => p.avg === 0)
+    ? 'Presente: se le escucha en la red, pero no contesta las revisiones (no se puede medir su latencia)'
+    : `Promedio ${avg.toFixed(1)} ms · máximo ${Math.max(...hData.map(p=>p.max)).toFixed(1)} ms · ${lost ? lost + ' periodo(s) con pérdida' : 'sin pérdidas'}`;
+  cv.onmousemove = e => {
+    const r = cv.getBoundingClientRect(), x = e.clientX - r.left;
+    let best = hData[0]; hData.forEach(p => { if (Math.abs(X(p.t)-x) < Math.abs(X(best.t)-x)) best = p; });
+    info.textContent = `${new Date(best.t*1000).toLocaleString('es-MX', {dateStyle:'short', timeStyle:'short'})} · ` +
+      (best.avg <= -2 ? 'desconectado' : best.avg < 0 ? 'sin respuesta' : best.avg === 0 ? 'presente (se le escucha en la red; no contesta la revisión)' : `${best.avg.toFixed(1)} ms` + (hRange !== '1h' ? ` (máx ${best.max.toFixed(1)})` : '')) +
+      (best.loss > 0 && best.avg >= 0 ? ` · ${best.loss.toFixed(0)} % perdidos` : '');
+  };
+  cv.onmouseleave = drawBig;
+}
+function renderDetail(){
+  const d = devIndex[detail]; if (!d) return closeDev();
+  const web = (d.ports||[]).find(p => [80,8080,443,8443,8000,5000].includes(p));
+  const webUrl = web ? `${[443,8443].includes(web)?'https':'http'}://${d.ip}${[80,443].includes(web)?'':':'+web}` : '';
+  const priv = d.vendor === 'MAC privada (aleatoria)';
+  const tips = [];
+  if (webUrl) tips.push(`Abre su página: <a href="${webUrl}" target="_blank" rel="noopener">${webUrl}</a>`);
+  if (priv) tips.push('MAC privada: probablemente un celular o tablet.');
+  else if (!d.vendor) tips.push(`Busca “MAC lookup ${esc(d.mac.slice(0,8))}” en internet.`);
+  tips.push('Desconecta el equipo sospechoso y mira si pasa a <b>Caído</b>.');
+  $('drawer').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+      <div class="who"><span class="isle i-acc" data-ico="${kindIco(d.kind)}"></span><div><h3>${esc(devName(d))}</h3><div class="sub">${kindName(d.kind)}${d.kind?' (probable)':''}</div></div></div>
+      <button class="btn sec sm" onclick="closeDev()" title="Cerrar" aria-label="Cerrar" style="font-size:18px;line-height:1;padding:6px 11px">✕</button></div>
+    <div class="chips" style="margin-top:12px;align-items:center">${stateChip(d)} ${icons(d).join(' ')}${ided(d)?'':'<span class="tag new">por identificar</span>'}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px">
+      <b>Latencia y pérdidas</b>
+      <div style="display:flex;gap:4px">${[['1h','1 h'],['24h','24 h'],['7d','7 días']].map(([r,l]) => `<button class="btn sec sm rng" data-r="${r}" onclick="setRange('${r}')">${l}</button>`).join('')}</div>
+    </div>
+    <canvas id="bigChart" style="height:190px;margin-top:8px"></canvas>
+    <div class="sub" id="bigInfo" style="min-height:18px"></div>
+    <div class="kv">
+      <div>IP</div><div class="mono">${esc(d.ip)}</div>
+      <div>MAC</div><div class="mono">${esc(d.mac)}</div>
+      ${[['Ubicación', d.location], ['Fabricante', d.vendor], ['Nombre en la red', d.hostname], ['Nombre Windows', d.netbios], ['Nombre Bonjour', d.mdns], ['Su página web', d.webTitle]]
+        .filter(([, v]) => v).map(([k, v]) => `<div>${k}</div><div>${esc(v)}</div>`).join('')}
+      <div>Latencia</div><div>${fmtLat(d)}</div>
+      <div>Pings perdidos (1 h)</div><div>${(d.loss||0).toFixed(1)} %</div>
+      <div>Caídas (24 h)</div><div>${d.drops24h||0}</div>
+      <div>Visto por 1.ª vez</div><div>${fmtDate(d.firstSeen)}</div>
+      ${d.identified && !String(d.identified).startsWith('0001') ? `<div>Revisado</div><div>${fmtAgo(d.identified)}</div>` : ''}
+    </div>
+    <div id="rtDevBox">${rtDevHTML(d)}</div>
+    <div class="sub" style="margin-bottom:6px">Servicios abiertos</div>
+    <div class="ports">${(d.ports||[]).map(p => `<span class="tag">${p} · ${PORTS[p]||'?'}</span>`).join('') || '<span class="sub">ninguno</span>'}</div>
+    ${ided(d) ? '' : `<h2 style="margin-top:20px">Cómo identificarlo</h2><ol class="steps">${tips.map(t => `<li>${t}</li>`).join('')}</ol>`}
+    <div class="toolbar" style="margin-top:18px">
+      <button class="btn w" onclick="editDev('${d.id}')">Editar nombre y ubicación</button>
+    </div>`;
+  paintIcons($('drawer'));
+  drawBig();
+}
+window.editDev = id => {
+  const d = devIndex[id]; if (!d) return;
+  $('modal').innerHTML = `<div class="mh"><h3>${esc(d.ip)} <span class="sub mono">${esc(d.mac)}</span></h3>
+      <button class="ibtn" title="Cerrar" onclick="closeModal()">${ico('close')}</button></div>
+    <form id="devForm">
+      <label>Nombre</label><input type="text" id="dName" value="${esc(d.name)}" placeholder="${esc(d.hostname || d.netbios || '')}">
+      <label>Ubicación</label><input type="text" id="dLoc" value="${esc(d.location)}" placeholder="Piso 3, Contabilidad">
+      <div class="mf"><span class="err" id="mErr"></span><button class="btn">Guardar</button></div>
+    </form>`;
+  $('mov').classList.remove('hide'); $('dName').focus();
+  $('devForm').onsubmit = async e => { e.preventDefault();
+    try { await saveDev(d, $('dName').value, $('dLoc').value); closeModal(); refresh(); } catch (x) { $('mErr').textContent = x.message; } };
+};
+const saveDev = (d, name, loc) => { name = name.trim(); loc = loc.trim();
+  d.name = name; d.location = loc;
+  return post('/api/device', {mac: d.id, name, location: loc, known: name !== ''}); };
+
+// ---------- OBJETIVOS ----------
+function renderTargets(){
+  $('tgtBody').innerHTML = targets.map(t => `
+    <tr>
+      <td style="width:1%"><span class="dot ${t.lastCheck && !t.lastCheck.startsWith('0001') ? (t.online?'d-on':'d-off') : ''}" title="${t.online?'Responde':'No responde'}"></span></td>
+      <td><b>${esc(t.name)}</b> <span class="sub mono">${esc(t.host)}${t.port ? ':'+t.port : ''}</span></td>
+      <td style="text-align:right">${fmtMs(t.latencyMs, t.online)}</td>
+      <td style="width:1%"><button class="btn sec sm w" onclick="delT('${t.id}')" title="Quitar">✕</button></td>
+    </tr>`).join('') || '<tr><td class="sub">Sin servicios</td></tr>';
+}
+window.delT = async id => { if (confirm('¿Quitar este objetivo?')) { await api('/api/targets?id='+id, {method:'DELETE'}); refresh(); } };
+$('btnAddT').onclick = async () => {
+  const host = $('tHost').value.trim(); if (!host) return $('tHost').focus();
+  await post('/api/targets', {name: $('tName').value.trim(), host, port: parseInt($('tPort').value) || 0});
+  $('tName').value = $('tHost').value = $('tPort').value = '';
+  setTimeout(refresh, 800);
+};
+
+// ---------- EVENTOS (filtrados en la Pi, desde la base de 1 año) ----------
+let evFilt = null;
+const evQS = () => {
+  const p = {filtro: 1, seg: $('eSeg').value, tipo: $('eTipo').value, q: $('eQ').value.trim(), dias: $('eDias').value};
+  if (p.dias === '1') p.dias = 1; // "hoy" = desde la medianoche
+  return new URLSearchParams(p);
+};
+async function loadEvents(){
+  try { evFilt = await api('/api/events?' + evQS()); } catch { evFilt = null; }
+  if (tab === 'eventos') renderEvents();
+}
+function renderEvents(){
+  const sel = $('eSeg'), cur = sel.value, key = segsSorted().map(g => g.seg).join();
+  if (sel.dataset.key !== key) { // solo si cambió la lista (no cerrar el menú cada 5 s)
+    sel.innerHTML = '<option value="">Todos los segmentos</option><option value="-">Generales (internet, Raspberry)</option>' +
+      segsSorted().map(g => `<option value="${g.seg}">${segName(g.seg)}</option>`).join('');
+    sel.value = cur; sel.dataset.key = key;
+  }
+  let list = evFilt || [];
+  if ($('eDias').value === '1') { const s = dayStart() * 1000; list = list.filter(e => new Date(e.time) >= s); }
+  $('evCount').textContent = !evFilt ? 'Cargando…' : list.length >= 500 ? 'Los 500 más recientes' : plural(list.length).replace('equipo', 'evento');
+  $('evList').innerHTML = list.map(evHTML).join('') || '<div class="ev sub">Sin eventos</div>';
+}
+let eTimer;
+$('eQ').oninput = () => { clearTimeout(eTimer); eTimer = setTimeout(loadEvents, 350); };
+$('eSeg').onchange = $('eTipo').onchange = $('eDias').onchange = () => { evFilt = null; renderEvents(); loadEvents(); };
+
+// punto rojo en la pestaña Resumen cuando hay una alerta grande
+function alertDot(){
+  const inet = targets.filter(t => !t.port && /^(8\.8\.8\.8|1\.1\.1\.1)$/.test(t.host) && checked(t));
+  const noNet = inet.length > 0 && !inet.some(t => t.online);
+  const wh = sumSegs(g => g.withHist), fn = sumSegs(g => g.failedNow);
+  const on = noNet || segs.some(g => g.down || (g.net === 'sin' && g.online > 0)) || (wh >= 3 && fn / wh >= 0.6);
+  document.querySelector('nav button[data-tab="resumen"]').classList.toggle('alert', on);
+}
+function render(){
+  alertDot();
+  // pie de página: red en la que está la Pi y versión
+  $('fNet').innerHTML = `<b>${esc(sys.hostname || 'Raspberry')}</b> · ${esc(sys.ip || '—')} · ${/^(eth|en)/.test(sys.iface||'') ? 'cable' : 'Wi‑Fi'}` +
+    ` · ${segs.length} segmentos` + (sys.roundN ? ` · ${sys.roundN} equipos cada ${sys.everySecs} s` : '');
+  $('fVer').innerHTML = `Monitoreo de Red <b>v${esc(sys.version || '')}</b>`;
+  $('navRouter').classList.toggle('hide', !rt.activo);
+  if (tab === 'router' && !rt.activo) return go('resumen');
+  if (tab === 'resumen') { renderResumen(); renderRouter(); }
+  if (tab === 'router') renderRouterTab();
+  if (tab === 'dispositivos') renderDevices();
+  if (tab === 'objetivos') { renderOutages(); renderTargets(); }
+  if (tab === 'eventos') renderEvents();
+  if (detail) renderDetail();
+  paintIcons();
+}
+
+const DEMO = new URLSearchParams(location.search).has('demo');
+let busy = false, again = false;
+async function refresh(){
+  if (busy) { again = true; return; } // si la anterior aún no termina, se repite al acabar
+  busy = true; again = false;
+  try {
+    [segs, targets, events, sys, outages, rt] = await Promise.all([api('/api/segments'), api('/api/targets'), api('/api/events'), api('/api/system'),
+      api('/api/outages?days=30').catch(() => outages), api('/api/snmp').catch(() => rt)]);
+    if (DEMO && segs.length) { // ?demo: simula que el segmento más grande cayó (solo en pantalla)
+      const g = segs.reduce((a, b) => b.present > a.present ? b : a);
+      g.down = true; g.downCount = g.present; g.downSince = new Date(Date.now() - 120000).toISOString();
+    }
+    // solo se bajan los segmentos que se están viendo
+    const need = new Set();
+    if (tab === 'dispositivos' && !filterMode()) ($('fSeg').value ? [$('fSeg').value] : [...openSegs]).forEach(s => need.add(s));
+    if (detail && detailSeg) need.add(detailSeg);
+    Object.keys(segData).forEach(s => { if (!need.has(s)) delete segData[s]; });
+    const want = tab === 'dispositivos' && filterMode();
+    // búsqueda y filtros los resuelve la Pi; aquí solo se dibuja lo que regresa
+    const qs = new URLSearchParams({q: $('q').value.trim(), f: $('fEstado').value, seg: $('fSeg').value});
+    const [lite, ...lists] = await Promise.all([want ? api('/api/devices?' + qs) : null, ...[...need].map(s => api('/api/devices?seg=' + encodeURIComponent(s)))]);
+    liteAll = lite;
+    [...need].forEach((s, i) => { segData[s] = lists[i]; });
+    indexDevs();
+    if (tab === 'eventos') await loadEvents();
+    render();
+    if (detail) { loadHist(); loadRtDev(); }
+  } catch (e) { $('fNet').textContent = '⚠ sin conexión con la Raspberry'; }
+  busy = false;
+  if (again) refresh();
+}
+// ---------- cuenta ----------
+let me = {};
+function renderAcct(){
+  $('acctBtn').textContent = me.usuario + ' ▾';
+  $('acctMenu').innerHTML = `<div class="sub">${PERFIL[me.perfil] || ''}</div>
+    <button onclick="passModal()">Cambiar mi contraseña</button><button onclick="logout()">Salir</button>`;
+  document.body.classList.toggle('ro', me.perfil === 'consulta');
+}
+$('acctBtn').onclick = e => { e.stopPropagation(); $('acctMenu').classList.toggle('hide'); };
+document.addEventListener('click', () => $('acctMenu').classList.add('hide'));
+window.logout = async () => { await fetch('/api/auth/salir', {method: 'POST'}); location.replace('/login'); };
+window.passModal = () => {
+  $('modal').innerHTML = `<div class="mh"><h3>Cambiar mi contraseña</h3>${xBtn}</div>
+    <form id="pForm"><label>Actual</label><input type="password" id="pOld" autocomplete="current-password" required>
+      <label>Nueva (mínimo 8)</label><input type="password" id="pNew" autocomplete="new-password" required>
+      <div class="mf"><span class="err" id="mErr"></span><button class="btn">Guardar</button></div></form>`;
+  $('mov').classList.remove('hide'); $('pOld').focus();
+  $('pForm').onsubmit = async e => { e.preventDefault();
+    try { await post('/api/auth/clave', {actual: $('pOld').value, nueva: $('pNew').value}); closeModal(); alert('Contraseña cambiada.'); }
+    catch (x) { $('mErr').textContent = x.message; } };
+};
+(async () => {
+  try { me = await (await fetch('/api/auth/sesion')).json(); } catch { me = {}; }
+  if (!me.sesion) return location.replace('/login');
+  renderAcct(); paintIcons();
+  const t0 = new URLSearchParams(location.search).get('tab');
+  if (t0 && document.getElementById(t0) && t0 !== 'router') go(t0);
+  refresh(); setInterval(refresh, 5000);
+  if (t0 === 'router') setTimeout(() => rt.activo && go('router'), 1500); // espera a saber si hay router
+})();
+addEventListener('resize', render);
+</script>
+</body>
+</html>

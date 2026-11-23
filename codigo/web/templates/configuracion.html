@@ -1,0 +1,111 @@
+{{/*
+  Configuración (Go + htmx). Página: web.Marco + .Tab + .Usuarios/.Segmentos/.Equipos.
+  Las pestañas internas cambian solo #cfg (y la dirección, para que "atrás" funcione).
+  Cada pestaña se pinta en #cfg-contenido; guardar en una ventana vuelve a pintar la
+  tabla y cierra la ventana (hx-swap-oob).
+*/}}
+{{define "configuracion"}}{{template "pagina-ini" .Marco}}
+<div id="cfg">{{template "cfg-cuerpo" .}}</div>
+{{template "pagina-fin" .Marco}}{{end}}
+
+{{define "cfg-cuerpo"}}
+<div class="subtabs">
+  {{if .Marco.Admin}}<a href="/configuracion?tab=usuarios" hx-get="/configuracion/usuarios" hx-target="#cfg" hx-push-url="/configuracion?tab=usuarios"{{if eq .Tab "usuarios"}} class="on"{{end}}>Usuarios</a>{{end}}
+  <a href="/configuracion?tab=segmentos" hx-get="/configuracion/segmentos" hx-target="#cfg" hx-push-url="/configuracion?tab=segmentos"{{if eq .Tab "segmentos"}} class="on"{{end}}>Segmentos</a>
+  <a href="/configuracion?tab=equipos" hx-get="/configuracion/equipos" hx-target="#cfg" hx-push-url="/configuracion?tab=equipos"{{if eq .Tab "equipos"}} class="on"{{end}}>Equipos</a>
+</div>
+<div class="card" id="cfg-contenido">
+  {{if eq .Tab "usuarios"}}{{template "cfg-usuarios" .Usuarios}}
+  {{else if eq .Tab "equipos"}}{{template "cfg-equipos" .Equipos}}
+  {{else}}{{template "cfg-segmentos" .Segmentos}}{{end}}
+</div>
+{{end}}
+
+{{/* lo que vuelve después de guardar en una ventana: la tabla nueva + cerrar la ventana */}}
+{{define "cerrar-ventana"}}<div id="modal" hx-swap-oob="innerHTML"></div>{{end}}
+{{define "cfg-usuarios-y-cerrar"}}{{template "cfg-usuarios" .}}{{template "cerrar-ventana"}}{{end}}
+{{define "cfg-segmentos-y-cerrar"}}{{template "cfg-segmentos" .}}{{template "cerrar-ventana"}}{{end}}
+
+{{/* ---------- Usuarios (solo admin) ---------- */}}
+{{define "cfg-usuarios"}}
+{{if .Aviso}}<div class="aviso">{{.Aviso}}</div>{{end}}
+<div class="barra"><span class="sub">Administrador: todo · Operador: nombres, ubicaciones y segmentos · Consulta: solo ver</span>
+  <button class="ibtn pri" title="Nueva cuenta" aria-label="Nueva cuenta" hx-get="/configuracion/usuarios/nueva" hx-target="#modal">{{template "i-mas"}}</button></div>
+<div class="tabla"><table><thead><tr><th>Usuario</th><th>Perfil</th><th>Último acceso</th><th></th></tr></thead><tbody>
+{{range .Usuarios}}<tr><td><b>{{.Usuario}}</b>{{if .Yo}} <span class="sub">(tú)</span>{{end}}</td><td>{{.PerfilNombre}}</td><td class="sub">{{.Ultimo}}</td>
+  <td class="act"><button class="ibtn" title="Editar" aria-label="Editar {{.Usuario}}" hx-get="/configuracion/usuarios/editar?u={{.Usuario}}" hx-target="#modal">{{template "i-editar"}}</button></td></tr>
+{{end}}</tbody></table></div>
+<h2>Bitácora de seguridad <span class="sub">· 30 días</span></h2>
+<div class="tabla alta"><table><thead><tr><th>Cuándo</th><th>Usuario</th><th>Qué</th><th>IP</th><th>Navegador</th></tr></thead><tbody>
+{{range .Bitacora}}<tr><td class="sub">{{.Cuando}}</td><td>{{.Usuario}}</td><td{{if .Clase}} class="c-{{.Clase}}"{{end}}>{{.Que}}</td><td class="mono sub">{{.IP}}</td><td class="sub">{{.Agente}}</td></tr>
+{{else}}<tr><td colspan="5" class="sub">Sin registros</td></tr>{{end}}</tbody></table></div>
+{{end}}
+
+{{define "cfg-usuario-ventana"}}{{if .Nuevo}}{{template "modal-ini" "Nueva cuenta"}}{{else}}{{template "modal-ini" .Usuario}}{{end}}
+<form hx-post="/configuracion/usuarios" hx-target="#cfg-contenido" hx-disabled-elt="find button">
+  {{if .Nuevo}}<input type="hidden" name="nuevo" value="1">
+  <label for="u">Usuario</label><input id="u" name="usuario" value="{{.Usuario}}" autocapitalize="none" placeholder="nombre.apellido" required autofocus>
+  {{else}}<input type="hidden" name="usuario" value="{{.Usuario}}">{{end}}
+  <label for="p">Perfil</label><select id="p" name="perfil">{{$p := .Perfil}}{{range .Perfiles}}<option value="{{index . 0}}"{{if eq (index . 0) $p}} selected{{end}}>{{index . 1}}</option>{{end}}</select>
+  <label for="c">{{if .Nuevo}}Contraseña (mínimo 8){{else}}Nueva contraseña (vacío = no cambia){{end}}</label>
+  <input id="c" name="clave" type="password" autocomplete="new-password"{{if .Nuevo}} required{{end}}>
+  <div class="mf"><span class="error">{{.Error}}</span>
+    {{if and (not .Nuevo) (not .Yo)}}<button type="button" class="ibtn" title="Borrar cuenta" aria-label="Borrar cuenta"
+      hx-delete="/configuracion/usuarios?u={{.Usuario}}" hx-target="#cfg-contenido" hx-confirm="¿Borrar la cuenta {{.Usuario}}?">{{template "i-borrar"}}</button>{{end}}
+    <button class="btn">Guardar</button></div>
+</form>
+{{template "modal-fin"}}{{end}}
+
+{{/* ---------- Segmentos ---------- */}}
+{{define "cfg-segmentos"}}
+{{if .Aviso}}<div class="aviso">{{.Aviso}}</div>{{end}}
+<div class="barra"><span class="sub">{{len .Filas}} segmentos</span>
+  {{if .Puede}}<button class="ibtn pri" title="Agregar segmento" aria-label="Agregar segmento" hx-get="/configuracion/segmentos/nuevo" hx-target="#modal">{{template "i-mas"}}</button>{{end}}</div>
+<div class="tabla"><table><thead><tr><th>Segmento</th><th>Nombre</th><th>Ubicación</th><th>Puerta</th><th>Equipos</th>{{if .Puede}}<th></th>{{end}}</tr></thead><tbody>
+{{$puede := .Puede}}{{range .Filas}}<tr{{if .Oculto}} class="oculto"{{end}}>
+  <td><b>{{.Seg}}</b></td><td>{{or .Nombre "—"}}</td><td>{{or .Ubicacion "—"}}</td><td class="mono">{{or .Puerta "—"}}</td>
+  <td><a href="/configuracion?tab=equipos&amp;seg={{.Seg}}" hx-get="/configuracion/equipos?seg={{.Seg}}" hx-target="#cfg" hx-push-url="/configuracion?tab=equipos&amp;seg={{.Seg}}">{{.Equipos}}</a></td>
+  {{if $puede}}<td class="act"><button class="ibtn" title="Editar" aria-label="Editar segmento {{.Seg}}" hx-get="/configuracion/segmentos/editar?seg={{.Seg}}" hx-target="#modal">{{template "i-editar"}}</button></td>{{end}}</tr>
+{{end}}</tbody></table></div>
+{{end}}
+
+{{/* puerta: si la detectada contesta, ya viene escrita; si no, vacío para escribirla */}}
+{{define "cfg-segmento-ventana"}}{{if .Nuevo}}{{template "modal-ini" "Agregar segmento"}}{{else}}{{template "modal-ini" (print "Segmento " .Seg)}}{{end}}
+<form hx-post="/configuracion/segmentos" hx-target="#cfg-contenido" hx-disabled-elt="find button">
+  {{if .Nuevo}}<input type="hidden" name="nuevo" value="1">
+  <label for="s">Segmento</label><input id="s" name="seg" value="{{.Seg}}" placeholder="130, 192.168.130 o 10.20.30" required autofocus>
+  {{else}}<input type="hidden" name="seg" value="{{.Seg}}">{{end}}
+  <label for="n">Nombre</label><input id="n" name="nombre" value="{{.Nombre}}"{{if not .Nuevo}} autofocus{{end}}>
+  <label for="l">Ubicación</label><input id="l" name="ubicacion" value="{{.Ubicacion}}" placeholder="Piso 3, área de Comisiones">
+  <label for="g">Puerta de enlace</label><input id="g" name="puerta" value="{{.Puerta}}" placeholder="{{.PuertaEjemplo}}">
+  {{if not .Nuevo}}<label class="check"><input type="checkbox" name="oculto" value="1"{{if .Oculto}} checked{{end}}> Ocultar</label>{{end}}
+  <div class="mf"><span class="error">{{.Error}}</span>
+    {{if .Manual}}<button type="button" class="ibtn" title="Quitar segmento" aria-label="Quitar segmento"
+      hx-delete="/configuracion/segmentos?seg={{.Seg}}" hx-target="#cfg-contenido" hx-confirm="¿Quitar el segmento {{.Seg}}?">{{template "i-borrar"}}</button>{{end}}
+    <button class="btn">Guardar</button></div>
+</form>
+{{template "modal-fin"}}{{end}}
+
+{{/* ---------- Equipos de un segmento: nombre y ubicación en la misma tabla ---------- */}}
+{{define "cfg-equipos"}}
+<div class="barra">
+  <select name="seg" aria-label="Segmento" hx-get="/configuracion/equipos" hx-target="#cfg" hx-trigger="change" hx-push-url="true">
+    {{$sel := .Seg}}{{range .Segmentos}}<option value="{{.Seg}}"{{if eq .Seg $sel}} selected{{end}}>{{.Etiqueta}} ({{.Equipos}})</option>{{end}}
+  </select>
+  {{if .Puede}}<span class="sub">Se guarda al presionar Enter o cambiar de campo</span>{{end}}
+</div>
+<div class="tabla"><table{{if .Puede}} class="edit"{{end}}><thead><tr><th>IP</th><th class="ancha">Nombre</th><th class="ancha">Ubicación</th><th>Fabricante</th><th>MAC</th></tr></thead><tbody>
+{{range .Filas}}{{template "cfg-equipo-fila" .}}{{else}}<tr><td colspan="5" class="sub">Sin equipos</td></tr>{{end}}
+</tbody></table></div>
+{{end}}
+
+{{define "cfg-equipo-fila"}}{{$e := .}}<tr{{if .Guardado}} class="guardado"{{end}}>
+  <td class="mono">{{$e.IP}}</td>
+  {{if .Puede}}<td><input name="nombre" value="{{$e.Nombre}}" placeholder="{{$e.Sugerido}}" aria-label="Nombre de {{$e.IP}}"
+      hx-post="/configuracion/equipos" hx-trigger="change" hx-include="closest tr" hx-target="closest tr" hx-swap="outerHTML"></td>
+  <td><input name="ubicacion" value="{{$e.Ubicacion}}" aria-label="Ubicación de {{$e.IP}}"
+      hx-post="/configuracion/equipos" hx-trigger="change" hx-include="closest tr" hx-target="closest tr" hx-swap="outerHTML">
+      <input type="hidden" name="id" value="{{$e.ID}}"></td>
+  {{else}}<td>{{or $e.Nombre "—"}}</td><td>{{or $e.Ubicacion "—"}}</td>{{end}}
+  <td class="sub">{{or $e.Fabricante "—"}}</td><td class="mono sub">{{$e.MAC}}</td>
+</tr>{{end}}
