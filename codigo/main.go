@@ -21,7 +21,7 @@ import (
 	"monitoreo/web"
 )
 
-var version = "2.17.0"
+var version = "2.17.1"
 
 func main() {
 	port := flag.String("port", envOr("NETMON_PORT", "5000"), "puerto HTTP")

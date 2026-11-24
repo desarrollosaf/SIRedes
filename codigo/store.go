@@ -1083,6 +1083,24 @@ func (s *Store) failedKeysLocked(seg string, since time.Time) []string {
 	return ks
 }
 
+// mejorRepIP: ¿d representa mejor que r a una IP compartida por varios aparatos?
+// Gana el que está en línea; luego el que cayó hace poco (el más antiguo); luego el id menor.
+func mejorRepIP(d, r *Device, now time.Time) bool {
+	if d.Online != r.Online {
+		return d.Online
+	}
+	rec := func(x *Device) bool {
+		return !x.failSince.IsZero() && x.Fails >= 2 && x.upSinceStart && now.Sub(x.LastSeen) < 15*time.Minute
+	}
+	if rec(d) != rec(r) {
+		return rec(d)
+	}
+	if rec(d) && !d.failSince.Equal(r.failSince) {
+		return d.failSince.Before(r.failSince)
+	}
+	return d.ID < r.ID
+}
+
 // EvalSegments se corre después de cada ronda de chequeos. Si casi todos los
 // equipos activos de un segmento dejan de responder EN EL MISMO MOMENTO (2 min),
 // es falla del segmento (switch, cable o router), no gente apagando sus equipos.
@@ -1115,12 +1133,27 @@ func (s *Store) EvalSegments(now time.Time) {
 	}
 	g := map[string]*acc{}
 	counted := map[string]bool{} // un aparato cuenta una vez por segmento aunque tenga varias IPs
+	var uniq []*Device
 	for _, d := range s.Devs {
 		k := segOf(d.IP)
 		if counted[k+"|"+d.MAC] {
 			continue
 		}
 		counted[k+"|"+d.MAC] = true
+		uniq = append(uniq, d)
+	}
+	// una IP cuenta una vez por segmento aunque la usen aparatos distintos (dos
+	// access points que se turnan la misma IP): si alguno está en línea, esa IP
+	// está en línea; si no, se toma el que lleva más tiempo fallando.
+	repr := map[string]*Device{}
+	for _, d := range uniq {
+		ipk := segOf(d.IP) + "|" + d.IP
+		if r, ok := repr[ipk]; !ok || mejorRepIP(d, r, now) {
+			repr[ipk] = d
+		}
+	}
+	for _, d := range repr {
+		k := segOf(d.IP)
 		a := g[k]
 		if a == nil {
 			a = &acc{}
