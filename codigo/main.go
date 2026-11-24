@@ -21,7 +21,7 @@ import (
 	"monitoreo/web"
 )
 
-var version = "2.16.0"
+var version = "2.17.0"
 
 func main() {
 	port := flag.String("port", envOr("NETMON_PORT", "5000"), "puerto HTTP")
@@ -178,16 +178,20 @@ func registerAPI(mux chi.Router, store *Store, mon *Monitor) {
 		switch r.Method {
 		case http.MethodPost:
 			var req struct {
-				MAC      string `json:"mac"`
-				Name     string `json:"name"`
-				Location string `json:"location"`
-				Known    bool   `json:"known"`
+				MAC      string  `json:"mac"`
+				Name     string  `json:"name"`
+				Location string  `json:"location"`
+				Known    bool    `json:"known"`
+				Kind     *string `json:"kind"` // ausente = no tocar; "auto" = quitar el fijado; o un tipo
 			}
 			if json.NewDecoder(r.Body).Decode(&req) != nil || req.MAC == "" {
 				http.Error(w, "datos inválidos", 400)
 				return
 			}
-			store.UpdateDevice(req.MAC, strings.TrimSpace(req.Name), strings.TrimSpace(req.Location), req.Known)
+			if err := store.UpdateDevice(req.MAC, strings.TrimSpace(req.Name), strings.TrimSpace(req.Location), req.Known, req.Kind); err != nil {
+				http.Error(w, "tipo de equipo no válido", 400)
+				return
+			}
 			writeJSON(w, map[string]bool{"ok": true})
 		case http.MethodDelete:
 			store.DeleteDevice(r.URL.Query().Get("mac"))

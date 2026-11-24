@@ -431,7 +431,7 @@ const KIND = {
   camara:['Cámara IP','camera'], 'telefono-ip':['Teléfono IP','voip'], iphone:['iPhone / iPad','phone'],
   celular:['Celular','phone'], tv:['TV / Chromecast','tv'], nas:['Almacenamiento (NAS)','disk'], red:['Equipo de red','router'],
   windows:['PC con Windows','pc'], mac:['Mac','laptop'], linux:['Linux / servidor','server'], iot:['Dispositivo inteligente (IoT)','chip'],
-  virtual:['Máquina virtual','server'], pc:['Computadora','pc'],
+  virtual:['Máquina virtual','server'], pc:['Computadora','pc'], escritorio:['PC de escritorio','pc'], laptop:['Laptop','laptop'],
 };
 const kindName = k => (KIND[k] || ['Tipo desconocido'])[0];
 const kindIco = k => (KIND[k] || [0,'help'])[1];
@@ -1111,15 +1111,17 @@ window.editDev = id => {
     <form id="devForm">
       <label>Nombre</label><input type="text" id="dName" value="${esc(d.name)}" placeholder="${esc(d.hostname || d.netbios || '')}">
       <label>Ubicación</label><input type="text" id="dLoc" value="${esc(d.location)}" placeholder="Piso 3, Contabilidad">
+      <label>Tipo</label><select id="dKind"><option value="auto">Automático (lo detecta)</option>${Object.keys(KIND).map(k => `<option value="${k}"${d.kindManual === k ? ' selected' : ''}>${esc(kindName(k))}</option>`).join('')}</select>
       <div class="mf"><span class="err" id="mErr"></span><button class="btn">Guardar</button></div>
     </form>`;
   $('mov').classList.remove('hide'); $('dName').focus();
   $('devForm').onsubmit = async e => { e.preventDefault();
-    try { await saveDev(d, $('dName').value, $('dLoc').value); closeModal(); refresh(); } catch (x) { $('mErr').textContent = x.message; } };
+    try { await saveDev(d, $('dName').value, $('dLoc').value, $('dKind').value); closeModal(); refresh(); } catch (x) { $('mErr').textContent = x.message; } };
 };
-const saveDev = (d, name, loc) => { name = name.trim(); loc = loc.trim();
+const saveDev = (d, name, loc, kind) => { name = name.trim(); loc = loc.trim();
   d.name = name; d.location = loc;
-  return post('/api/device', {mac: d.id, name, location: loc, known: name !== ''}); };
+  if (kind) { d.kindManual = kind === 'auto' ? '' : kind; if (kind !== 'auto') d.kind = kind; }
+  return post('/api/device', {mac: d.id, name, location: loc, known: name !== '', kind}); };
 
 // ---------- OBJETIVOS ----------
 function renderTargets(){

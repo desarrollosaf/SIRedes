@@ -306,7 +306,7 @@ func rutasConfig(r chi.Router, store *Store, mon *Monitor, auth *cuentas.Auth) {
 			return
 		}
 		nombre, ubic := strings.TrimSpace(f.Get("nombre")), strings.TrimSpace(f.Get("ubicacion"))
-		store.UpdateDevice(id, nombre, ubic, nombre != "")
+		store.UpdateDevice(id, nombre, ubic, nombre != "", nil)
 		d, _ := store.Device(id)
 		fila := filaDeEquipo(d, true)
 		fila.Guardado = true

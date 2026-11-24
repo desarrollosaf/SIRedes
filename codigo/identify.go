@@ -105,8 +105,16 @@ func guessKind(ip, mac, vendor, hostname string, i IDInfo) string {
 		}
 		return false
 	}
-	winName := regexp.MustCompile(`^(desktop|laptop|pc|win)-`)
+	winName := regexp.MustCompile(`^(pc|win)-`)
+	hn, nb := strings.ToLower(hostname), strings.ToLower(i.NetBIOS)
+	isLaptop := func(n string) bool {
+		return strings.HasPrefix(n, "laptop-") || strings.Contains(n, "laptop") || strings.Contains(n, "notebook")
+	}
 	switch {
+	case isLaptop(hn) || isLaptop(nb):
+		return "laptop"
+	case strings.HasPrefix(hn, "desktop-") || strings.HasPrefix(nb, "desktop-"):
+		return "escritorio"
 	case winName.MatchString(strings.ToLower(hostname)) || winName.MatchString(strings.ToLower(i.NetBIOS)):
 		return "windows" // nombre típico de Windows (DESKTOP-XXXX)
 	case isGateway(ip) || contains("gpon", "modem", "módem", "infinitum", "edgeos", "edgerouter", "routerboard"):

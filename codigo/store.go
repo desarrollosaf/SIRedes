@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -82,6 +83,7 @@ type Device struct {
 	Ports      []int     `json:"ports,omitempty"`
 	WebTitle   string    `json:"webTitle,omitempty"`
 	Kind       string    `json:"kind,omitempty"`
+	KindManual string    `json:"kindManual,omitempty"` // tipo fijado a mano: manda sobre la detección automática
 	Identified time.Time `json:"identified"`
 
 	// salud (calculada a partir del historial de pings)
@@ -399,6 +401,9 @@ func (s *Store) prepareLocked() {
 		d.ID = k
 		d.Online = false
 		d.Identified = time.Time{} // al arrancar se vuelven a buscar pistas
+		if d.KindManual != "" {
+			d.Kind = d.KindManual
+		}
 		if v := vendorOf(d.MAC); v != "" {
 			d.Vendor = v
 		}
@@ -910,6 +915,9 @@ func (s *Store) SetIdentity(mac string, i IDInfo) {
 		return
 	}
 	d.NetBIOS, d.MDNS, d.Ports, d.WebTitle, d.Kind = i.NetBIOS, i.MDNS, i.Ports, i.WebTitle, i.Kind
+	if d.KindManual != "" {
+		d.Kind = d.KindManual // lo fijado a mano no se pisa
+	}
 	d.Identified = time.Now()
 	if d.Hostname == "" {
 		if i.NetBIOS != "" {
@@ -970,7 +978,7 @@ var kindLabel = map[string]string{
 	"camara": "camara cámara ip", "telefono-ip": "telefono teléfono ip", "iphone": "iphone ipad",
 	"celular": "celular", "tv": "tv chromecast", "nas": "nas almacenamiento", "red": "equipo de red",
 	"windows": "pc windows", "mac": "mac", "linux": "linux servidor", "iot": "iot inteligente",
-	"virtual": "maquina virtual", "pc": "computadora pc",
+	"virtual": "maquina virtual", "pc": "computadora pc", "escritorio": "pc de escritorio computadora", "laptop": "laptop portatil notebook",
 }
 
 var healthRank = map[string]int{"caido": 0, "problema": 1, "inestable": 2, "normal": 3, "pendiente": 4, "desconectado": 5}
@@ -1416,7 +1424,7 @@ func (s *Store) guessGatewayLocked(k string, endpoint map[string]bool) string {
 // endpointKinds: tipos de equipo que nunca son puerta de enlace.
 var endpointKinds = map[string]bool{"pc": true, "windows": true, "mac": true, "linux": true, "celular": true,
 	"iphone": true, "impresora": true, "telefono-ip": true, "camara": true, "tv": true, "nas": true,
-	"virtual": true, "iot": true, "raspberry": true}
+	"virtual": true, "iot": true, "raspberry": true, "escritorio": true, "laptop": true}
 
 // PruneGateways olvida la puerta de los segmentos que ya no tienen candidata
 // (p. ej. se descubrió que era una PC).
@@ -1659,13 +1667,36 @@ func (s *Store) Segments() []SegSummary {
 	return out
 }
 
-func (s *Store) UpdateDevice(mac, name, location string, known bool) {
+// ErrTipoInvalido: el tipo pedido no está en la lista de tipos válidos.
+var ErrTipoInvalido = errors.New("tipo de equipo no válido")
+
+// validKind dice si k es un tipo que se puede fijar a mano.
+func validKind(k string) bool { _, ok := kindLabel[k]; return ok }
+
+// UpdateDevice guarda nombre, ubicación y "conocido". kind: nil = no tocar el tipo
+// fijado; "auto" = quitar el tipo fijado (se vuelve a detectar); otro valor =
+// fijarlo (debe estar en kindLabel, si no devuelve ErrTipoInvalido sin cambiar nada).
+func (s *Store) UpdateDevice(mac, name, location string, known bool, kind *string) error {
+	if kind != nil && *kind != "auto" && !validKind(*kind) {
+		return ErrTipoInvalido
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if d := s.Devs[mac]; d != nil {
 		d.Name, d.Location, d.Known = name, location, known
+		if kind != nil {
+			if *kind == "auto" {
+				if d.KindManual != "" {
+					d.KindManual = ""
+					d.Identified = time.Time{} // que la próxima ronda lo recalcule
+				}
+			} else {
+				d.KindManual, d.Kind = *kind, *kind
+			}
+		}
 		s.dirty = true
 	}
+	return nil
 }
 
 // PruneStale borra los equipos que llevan 30 días sin conectarse y a los que no
