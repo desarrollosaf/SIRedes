@@ -25,3 +25,7 @@ monitoreo-data.json
 
 # Configuración local de Claude Code
 .claude/settings.local.json
+
+# Guías locales de Claude Code (no se suben)
+CLAUDE.md
+.claude/
