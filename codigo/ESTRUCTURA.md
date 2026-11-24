@@ -13,7 +13,7 @@ codigo/
   web/               lo que ve el navegador (va dentro del programa)
     templates/       HTML que arma Go con html/template (escapa todo solo) + htmx
     static/          archivos tal cual: app.css, htmx.min.js
-    index.html       panel viejo (JavaScript propio) mientras se migra
+    index.html       panel viejo (solo el Resumen, JavaScript propio) mientras se migra
   *.go (resto)       monitor, base, segmentos, SNMP, internet, avisos… (por mover a app/)
   install.sh …       instalación en la Pi (por mover a despliegue/)
 ```
@@ -38,10 +38,10 @@ cambios Operador) → `SoloAdmin` (cuentas y bitácora). La API v1 (`/api/v1/*`)
 | :--- | :--- |
 | Entrada (`/login`) | Go + htmx (v2.15) |
 | Configuración | Go + htmx (v2.16) |
-| Dispositivos | pendiente |
+| Dispositivos | Go + htmx (v2.20) |
 | Router | Go + htmx (v2.18) |
 | Eventos | Go + htmx (v2.18) |
-| Internet y servicios | pendiente |
+| Internet y servicios | Go + htmx (v2.19) |
 | Resumen | pendiente |
 
 Al mover cada pantalla, su lógica de Go pasa a `app/<módulo>/` (handler, servicio, datos).

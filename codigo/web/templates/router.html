@@ -61,8 +61,8 @@
   {{if .Filas}}<div class="tabla alta"><table>
     <thead><tr><th>IP</th><th>Equipo</th><th>MAC</th><th>Fabricante</th></tr></thead>
     <tbody>{{range .Filas}}<tr>
-      <td class="mono">{{if .ID}}<a href="/?tab=dispositivos&dev={{.ID | urlquery}}&ip={{.IP | urlquery}}">{{.IP}}</a>{{else}}{{.IP}}{{end}}</td>
-      <td>{{if .Nombre}}{{if .ID}}<a href="/?tab=dispositivos&dev={{.ID | urlquery}}&ip={{.IP | urlquery}}">{{.Nombre}}</a>{{else}}{{.Nombre}}{{end}}{{else}}<span class="sub">—</span>{{end}}</td>
+      <td class="mono">{{if .ID}}<a href="/dispositivos?dev={{.ID | urlquery}}&ip={{.IP | urlquery}}">{{.IP}}</a>{{else}}{{.IP}}{{end}}</td>
+      <td>{{if .Nombre}}{{if .ID}}<a href="/dispositivos?dev={{.ID | urlquery}}&ip={{.IP | urlquery}}">{{.Nombre}}</a>{{else}}{{.Nombre}}{{end}}{{else}}<span class="sub">—</span>{{end}}</td>
       <td class="mono">{{.MAC}}</td>
       <td>{{if .Fab}}{{.Fab}}{{else}}<span class="sub">—</span>{{end}}</td></tr>{{end}}</tbody>
   </table></div>

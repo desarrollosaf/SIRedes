@@ -53,9 +53,11 @@ func rutas(store *Store, mon *Monitor, auth *cuentas.Auth, v1 http.Handler) http
 		r.Group(func(r chi.Router) {
 			r.Use(cuentas.PuedeCambiar)
 			registerAPI(r, store, mon)
-			rutasConfig(r, store, mon, auth) // Configuración (Go + htmx)
-			rutasEventos(r, store)           // Eventos (Go + htmx)
-			rutasRouter(r, store)            // Router SNMP (Go + htmx)
+			rutasConfig(r, store, mon, auth)          // Configuración (Go + htmx)
+			rutasEventos(r, store)                    // Eventos (Go + htmx)
+			rutasDispositivos(r, store, mon)          // Dispositivos (Go + htmx)
+			rutasRouter(r, store)                     // Router SNMP (Go + htmx)
+			rutasInternet(r, store, mon.CheckTargets) // Internet y servicios (Go + htmx)
 		})
 		r.Group(func(r chi.Router) {
 			r.Use(cuentas.SoloAdmin)
@@ -67,7 +69,7 @@ func rutas(store *Store, mon *Monitor, auth *cuentas.Auth, v1 http.Handler) http
 	r.HandleFunc("/api/*", func(w http.ResponseWriter, r *http.Request) { http.Error(w, "no existe", 404) })
 
 	// panel (todavía el index.html con JavaScript propio; sus datos piden sesión)
-	r.Get("/", web.Panel)
+	r.Get("/", panelRaiz)
 	r.Get("/index.html", func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, "/", http.StatusMovedPermanently) })
 	return r
 }

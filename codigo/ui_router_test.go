@@ -127,7 +127,7 @@ func TestRouter(t *testing.T) {
 	// ventana de un segmento
 	w = do("/router/segmento?red=192.168.10.0/24&puerta=192.168.10.254", con, "HX-Request", "true")
 	chk("ventana", w, 200, "192.168.10.0/24", "puerta 192.168.10.254", "2 equipos en la tabla ARP del router", "192.168.10.5", "aa:bb:cc:00:00:07",
-		"PC-CONTA &lt;b&gt;", "HP Inc.", `data-cerrar`, `href="/?tab=dispositivos&dev=aa%3Abb%3Acc%3A00%3A00%3A05%40192.168.10.5&ip=192.168.10.5"`)
+		"PC-CONTA &lt;b&gt;", "HP Inc.", `data-cerrar`, `href="/dispositivos?dev=aa%3Abb%3Acc%3A00%3A00%3A05%40192.168.10.5&ip=192.168.10.5"`)
 	no("ventana", w, "<html", "PC-CONTA <b>")
 	// el equipo que la Pi no conoce no lleva enlace
 	if strings.Count(w.Body.String(), "dev=") != 2 {

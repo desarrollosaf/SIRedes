@@ -1,0 +1,52 @@
+{{/*
+  Internet y servicios (Go + htmx). Página: web.Marco + estado, cortes, barras de 30 días y servicios.
+  #in-datos se vuelve a pedir solo cada 5 s (GET /internet con htmx devuelve solo ese pedazo).
+  Agregar / quitar servicio devuelven también #in-datos. El formulario queda fuera para no perder
+  lo que se escribe mientras se refresca; al agregar, el servidor lo manda vacío (hx-swap-oob).
+  Los controles solo se pintan si .Puede (Operador o más).
+*/}}
+{{define "internet"}}{{template "pagina-ini" .Marco}}
+{{template "in-datos" .}}
+{{if .Puede}}<details class="addt">
+  <summary>Agregar servicio</summary>
+  {{template "in-form" false}}
+</details>{{end}}
+{{template "pagina-fin" .Marco}}{{end}}
+
+{{define "in-form"}}<form id="in-form"{{if .}} hx-swap-oob="true"{{end}} class="toolbar" hx-post="/internet/servicios" hx-target="#in-datos" hx-swap="outerHTML" hx-disabled-elt="find button">
+  <input name="nombre" placeholder="Nombre (ej. Servidor)" aria-label="Nombre" maxlength="60" autocomplete="off">
+  <input name="host" placeholder="IP o dominio" aria-label="IP o dominio" maxlength="253" required autocomplete="off">
+  <input name="puerto" type="number" min="1" max="65535" placeholder="Puerto (vacío = ping)" aria-label="Puerto" class="puerto">
+  <button class="btn">Agregar</button>
+</form>{{end}}
+
+{{define "in-datos"}}<div id="in-datos" hx-get="/internet" hx-trigger="every 5s" hx-target="this" hx-swap="outerHTML">
+<div class="card netnow{{if .Mal}} alarmed{{end}}">
+  <span class="isle {{if .Mal}}i-bad{{else}}i-ok{{end}}">{{template "i-globo"}}</span>
+  <div><div class="big {{if .Mal}}c-bad{{else}}c-ok{{end}}">{{.Estado}}</div><div class="sub">{{.Detalle}}</div></div>
+  <div class="cnt">{{range .Kpis}}<div><b>{{.N}}</b><span class="sub">{{.Etiqueta}}</span></div>{{end}}</div>
+</div>
+<div class="card grafica">
+  <ol class="dias30" aria-label="Cortes por día, últimos 30 días">{{range .Barras}}<li class="{{.Clase}}" title="{{.Titulo}}"></li>{{end}}</ol>
+  <div class="eje sub"><span>{{.Desde}}</span><span>Cortes por día, últimos 30 días</span><span>hoy</span></div>
+</div>
+
+<h2>Cortes</h2>
+<div class="wrap"><table>
+  <thead><tr><th>Día</th><th>Hora</th><th>Duración</th><th>Causa</th></tr></thead>
+  <tbody>{{range .Cortes}}<tr><td>{{.Dia}}</td><td>{{.Hora}}</td>
+    <td>{{if .Sigue}}<span class="st st-noinet">sigue</span>{{else if .NoSabe}}<span class="sub" title="{{.Detalle}}">no se sabe</span>{{else}}{{.Duracion}}{{end}}</td>
+    <td class="sub">{{.Causa}}</td></tr>
+  {{else}}<tr><td colspan="4" class="sub">Sin cortes registrados.</td></tr>{{end}}</tbody>
+</table></div>
+
+<h2>Servicios</h2>
+{{if .Aviso}}<div class="{{if .AvisoMal}}error{{else}}aviso{{end}}" role="status">{{.Aviso}}</div>{{end}}
+<div class="wrap"><table class="tgts"><tbody>{{$p := .Puede}}{{range .Servicios}}<tr>
+  <td class="pto"><span class="dot {{.Punto}}" title="{{.PuntoTitulo}}"></span></td>
+  <td><b>{{.Nombre}}</b> <span class="sub mono">{{.Destino}}</span></td>
+  <td class="der">{{if .SinRespuesta}}<span class="c-bad">sin respuesta</span>{{else if .SinDatos}}<span class="sub">revisando…</span>{{else if .Latencia}}{{.Latencia}}{{else}}<span class="sub">—</span>{{end}}</td>
+  {{if $p}}<td class="act"><button type="button" class="ibtn" title="Quitar" aria-label="Quitar {{.Nombre}}"
+    hx-delete="/internet/servicios?id={{.ID | urlquery}}" hx-target="#in-datos" hx-swap="outerHTML" hx-confirm="¿Quitar el servicio {{.Nombre}}?">{{template "i-cerrar"}}</button></td>{{end}}
+</tr>{{else}}<tr><td class="sub">Sin servicios</td></tr>{{end}}</tbody></table></div>
+</div>{{if .ResetForm}}{{template "in-form" true}}{{end}}{{end}}

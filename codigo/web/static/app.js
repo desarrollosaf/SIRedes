@@ -15,3 +15,22 @@
     if (e.target.id === 'modal') { const f = e.target.querySelector('[autofocus], input, select'); if (f) f.focus(); }
   });
 })();
+
+// Dispositivos: "Abrir/Cerrar todos" los segmentos (<details>). Al abrirlos, htmx pide el contenido de cada uno.
+(() => {
+  const marcar = () => {
+    const b = document.getElementById('dv-plegar');
+    if (!b) return;
+    const hay = !!document.querySelector('details.segcard[open]');
+    b.classList.toggle('abierto', hay);
+    b.title = hay ? 'Cerrar todos' : 'Abrir todos';
+  };
+  document.addEventListener('click', e => {
+    if (!(e.target.closest && e.target.closest('#dv-plegar'))) return;
+    const abrir = !document.querySelector('details.segcard[open]');
+    document.querySelectorAll('details.segcard').forEach(d => { d.open = abrir; });
+    marcar();
+  });
+  document.addEventListener('toggle', marcar, true); // "toggle" no sube: se escucha en captura
+  document.addEventListener('htmx:afterSettle', marcar);
+})();

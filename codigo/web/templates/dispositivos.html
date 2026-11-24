@@ -1,0 +1,122 @@
+{{/*
+  Dispositivos (Go + htmx). Página: web.Marco + filtros + #dv-lista. Cada segmento es un <details>:
+  al abrirlo (toggle) pide su tabla a /dispositivos/segmento. #dv-lista se vuelve a pedir cada 30 s
+  mandando cuáles segmentos están abiertos (campos "abierto"), así no se cierra nada. Cada equipo abre
+  su ventana en #modal. Los controles de cambio solo se pintan si .Puede (Operador o más).
+  Abrir/cerrar todos lo hace app.js (botón #dv-plegar).
+*/}}
+{{define "i-buscar"}}<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>{{end}}
+{{define "i-desplegar"}}<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9l5-5 5 5M7 15l5 5 5-5"/></svg>{{end}}
+{{define "i-plegar"}}<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4l5 5 5-5M7 20l5-5 5 5"/></svg>{{end}}
+{{define "i-refrescar"}}<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.9-4M4 4v4h4M4 13a8 8 0 0 0 14.9 4M20 20v-4h-4"/></svg>{{end}}
+{{define "i-red"}}<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="M12 7v5M12 12l-6 5M12 12l6 5"/></svg>{{end}}
+
+{{define "dispositivos"}}{{template "pagina-ini" .Marco}}
+<div class="fbar">
+  <form id="dv-filtros" action="/dispositivos" method="get" role="search" hx-get="/dispositivos" hx-target="#dv-lista" hx-swap="outerHTML" hx-push-url="true" hx-include="#dv-filtros">
+    {{if .Demo}}<input type="hidden" name="demo" value="1">{{end}}
+    <label class="fsearch pill">{{template "i-buscar"}}<input type="search" name="q" value="{{.Q}}" placeholder="Buscar" aria-label="Buscar" maxlength="100" autocomplete="off" hx-get="/dispositivos" hx-trigger="input changed delay:350ms, search"></label>
+    <div class="fgrp pill">
+      <select name="seg" aria-label="Segmento" hx-get="/dispositivos" hx-trigger="change">{{range .Segmentos}}<option value="{{.Valor}}"{{if .Sel}} selected{{end}}>{{.Texto}}</option>{{end}}</select>
+      <select name="f" aria-label="Estado" hx-get="/dispositivos" hx-trigger="change">{{range .Estados}}<option value="{{.Valor}}"{{if .Sel}} selected{{end}}{{if .Oculto}} hidden{{end}}>{{.Texto}}</option>{{end}}</select>
+    </div>
+  </form>
+  <div class="facc">
+    <a class="btn sec" href="/configuracion?tab=segmentos">Segmentos</a>
+    {{if .Puede}}{{template "dv-escaner" .}}{{end}}
+  </div>
+</div>
+{{template "dv-lista" .}}
+{{if .AbrirDev}}<div hx-get="/dispositivos/equipo?id={{.AbrirDev | urlquery}}" hx-trigger="load" hx-target="#modal" hx-swap="innerHTML"></div>{{end}}
+{{template "pagina-fin" .Marco}}{{end}}
+
+{{define "dv-escaner"}}<span id="dv-escaner"{{if .Escaneando}} hx-get="/dispositivos/escanear" hx-trigger="load delay:3s" hx-swap="outerHTML"{{end}}>
+<button type="button" class="ibtn pri{{if .Escaneando}} spin{{end}}" title="{{if .Escaneando}}Escaneando…{{else}}Escanear ahora{{end}}" aria-label="Escanear ahora"{{if .Escaneando}} disabled{{else}} hx-post="/dispositivos/escanear" hx-target="#dv-escaner" hx-swap="outerHTML"{{end}}>{{template "i-refrescar"}}</button></span>{{end}}
+
+{{define "dv-lista"}}<div id="dv-lista" hx-get="/dispositivos" hx-trigger="every 30s, dv-refrescar from:body" hx-include="#dv-filtros, details[open] > input[name=abierto]" hx-target="this" hx-swap="outerHTML">
+{{if .Plegar}}<div class="barra"><span class="sub">{{.NSegs}} segmentos</span>
+  <button type="button" id="dv-plegar" class="ibtn{{if .HayAbiertos}} abierto{{end}}" title="{{if .HayAbiertos}}Cerrar todos{{else}}Abrir todos{{end}}" aria-label="Abrir o cerrar todos los segmentos"><span class="p-abrir">{{template "i-desplegar"}}</span><span class="p-cerrar">{{template "i-plegar"}}</span></button></div>{{end}}
+{{range .Segs}}{{template "dv-seg" .}}{{else}}<div class="card sub">{{.Vacio}}</div>{{end}}
+</div>{{end}}
+
+{{define "dv-seg"}}<details class="segcard{{if .Down}} down{{end}}" id="seg-{{.Seg}}"{{if .Abierto}} open{{else}} hx-get="/dispositivos/segmento?seg={{.Seg | urlquery}}&amp;q={{.Q | urlquery}}&amp;f={{.F | urlquery}}" hx-trigger="toggle once" hx-target="find .segbody" hx-swap="innerHTML"{{end}}>
+  <input type="hidden" name="abierto" value="{{.Seg}}">
+  <summary class="seghead">
+    <span class="chev">{{template "i-flecha"}}</span>
+    <span class="isle {{if .Mal}}i-bad{{else}}i-ok{{end}}">{{template "i-red"}}</span>
+    <div class="segname"><b>{{.Nombre}}</b><span class="sub">{{.Sub}}</span></div>
+    <div class="segcount"><b>{{.Conectados}}</b><span class="sub">conectados</span>{{if .Desconectados}}<span class="sub">· {{.Desconectados}} desconectados</span>{{end}}</div>
+    <svg class="segbar" viewBox="0 0 100 1" preserveAspectRatio="none" role="img" aria-label="Conectados y desconectados"><title>Conectados / desconectados</title>{{range .Barra}}<rect class="{{.Clase}}" x="{{.X}}" y="0" width="{{.W}}" height="1"/>{{end}}</svg>
+    <div class="chips">{{if .Down}}<span class="st st-noinet">SIN RESPUESTA</span>{{end}}{{range .Chips}}<span class="{{.Clase}}"{{if .Titulo}} title="{{.Titulo}}"{{end}}>{{.Texto}}</span>{{end}}</div>
+  </summary>
+  <div class="segbody">{{if .Abierto}}{{template "dv-cuerpo" .}}{{else}}<div class="sub carga">Cargando…</div>{{end}}</div>
+</details>{{end}}
+
+{{define "dv-cuerpo"}}<div class="wrap"><table>
+  <thead><tr><th>Estado</th><th>Equipo</th><th>IP</th><th>Cable</th><th>Internet</th><th>Latencia</th></tr></thead>
+  <tbody>{{range .Filas}}<tr class="click" hx-get="/dispositivos/equipo?id={{.ID | urlquery}}" hx-target="#modal">
+    <td><span class="st st-{{.EstadoClase}}">{{.EstadoTxt}}</span></td>
+    <td><div class="who"><span class="isle i-gray">{{.Icono}}</span><div><button type="button" class="nom">{{.Nombre}}</button>{{if .PorIdent}} <span class="tag new">por identificar</span>{{end}}<div class="sub">{{.Tipo}}{{if .Alias}} · otra IP del mismo equipo{{end}}</div></div></div></td>
+    <td class="mono">{{.IP}}</td>
+    <td><span class="ind ind-{{.Cable.Clase}}" title="{{.Cable.Titulo}}">{{template "i-cable"}}</span></td>
+    <td><span class="ind ind-{{.Inet.Clase}}" title="{{.Inet.Titulo}}">{{template "i-globo"}}</span></td>
+    <td>{{if eq .Latencia "—"}}<span class="sub">—</span>{{else}}{{.Latencia}}{{end}}</td>
+  </tr>{{else}}<tr><td colspan="6" class="sub">Sin equipos conectados</td></tr>{{end}}</tbody>
+</table></div>{{end}}
+
+{{define "dv-no-existe"}}{{template "modal-ini" "Equipo"}}<p class="sub">Ese equipo ya no está en la lista.</p>
+<div class="mf"><button type="button" class="btn" data-cerrar>Cerrar</button></div>{{template "modal-fin"}}{{end}}
+
+{{define "dv-equipo"}}{{template "modal-ini-ancho" .Nombre}}
+<div class="who"><span class="isle gr i-acc">{{.Icono}}</span><div><div class="sub">{{.Tipo}}{{.TipoNota}}</div></div></div>
+<div class="chips fila">
+  <span class="st st-{{.EstadoClase}}">{{.EstadoTxt}}</span>
+  <span class="ind ind-{{.Cable.Clase}}" title="{{.Cable.Titulo}}">{{template "i-cable"}}</span>
+  <span class="ind ind-{{.Inet.Clase}}" title="{{.Inet.Titulo}}">{{template "i-globo"}}</span>
+  {{if .PorIdent}}<span class="tag new">por identificar</span>{{end}}
+</div>
+{{template "dv-grafica" .Grafica}}
+<div class="kv">
+  <div>IP</div><div class="mono">{{.IP}}</div>
+  <div>MAC</div><div class="mono">{{.MAC}}</div>
+  {{range .Datos}}<div>{{.K}}</div><div>{{.V}}</div>{{end}}
+  <div>Latencia</div><div class="{{.LatenciaClase}}">{{.Latencia}}</div>
+  {{if .Router}}<div>{{.Router}}</div><div class="{{.RouterClase}}">{{.RouterTxt}}</div>{{end}}
+</div>
+<div class="sub tit">Servicios abiertos</div>
+<div class="ports">{{range .Puertos}}<span class="tag">{{.}}</span>{{else}}<span class="sub">ninguno</span>{{end}}</div>
+{{if .PorIdent}}<h2>Cómo identificarlo</h2><ol class="steps">
+  {{if .WebURL}}<li>Abre su página: <a href="{{.WebURL}}" target="_blank" rel="noopener">{{.WebURL}}</a></li>{{end}}
+  {{if .MacPrivada}}<li>MAC privada: probablemente un celular o tablet.</li>{{else if .SinFabricante}}<li>Busca “MAC lookup {{.OUI}}” en internet.</li>{{end}}
+  <li>Desconecta el equipo sospechoso y mira si pasa a <b>Desconectado</b>.</li>
+</ol>{{end}}
+{{if .Puede}}<div class="mf"><button type="button" class="btn" hx-get="/dispositivos/editar?id={{.ID | urlquery}}" hx-target="#modal">Editar nombre y ubicación</button></div>{{end}}
+{{template "modal-fin"}}{{end}}
+
+{{define "dv-grafica"}}<div id="dv-graf" hx-get="/dispositivos/grafica?id={{.ID | urlquery}}&amp;r={{.Rango}}" hx-trigger="every 30s" hx-swap="outerHTML">
+  <div class="gtop"><b>Latencia y pérdidas</b><div class="rangos">{{range .Rangos}}<button type="button" class="btn sec sm{{if .On}} on{{end}}" hx-get="/dispositivos/grafica?id={{$.ID | urlquery}}&amp;r={{.R}}" hx-target="#dv-graf" hx-swap="outerHTML">{{.Etiqueta}}</button>{{end}}</div></div>
+  <svg class="graf" viewBox="0 0 {{.Ancho}} {{.Alto}}" role="img" aria-label="Latencia y pérdidas">
+  {{if .Sin}}<text class="g-txt" x="46" y="{{.Y}}">Aún no hay datos para este periodo</text>
+  {{else}}
+    {{range .Rejilla}}<line class="g-rej" x1="46" x2="632" y1="{{.Y}}" y2="{{.Y}}"/><text class="g-txt" x="2" y="{{.Y}}" dy="4">{{.Etiqueta}}</text>{{end}}
+    {{range .Eje}}<text class="g-txt" x="{{.X}}" y="194" text-anchor="{{.Ancla}}">{{.Texto}}</text>{{end}}
+    {{range .Huecos}}<rect class="g-hue" x="{{.X}}" y="8" width="{{.W}}" height="170"/>{{end}}
+    {{if .Banda}}<path class="g-ban" d="{{.Banda}}"/>{{end}}
+    {{range .Marcas}}<rect class="{{.Clase}}" fill-opacity="{{.Op}}" x="{{.X}}" y="171" width="{{.W}}" height="7"/>{{end}}
+    {{if .Linea}}<path class="g-lin" d="{{.Linea}}"/>{{end}}
+    {{range .Puntos}}<rect class="g-hit" x="{{.X}}" y="8" width="{{.W}}" height="170"><title>{{.Titulo}}</title></rect>{{end}}
+  {{end}}
+  </svg>
+  <div class="sub info">{{.Info}}</div>
+</div>{{end}}
+
+{{define "dv-editar"}}{{template "modal-ini" .IP}}
+<div class="sub mono">{{.MAC}}</div>
+<form hx-post="/dispositivos/equipo" hx-target="#modal" hx-disabled-elt="find button">
+  <input type="hidden" name="id" value="{{.ID}}">
+  <label for="dv-n">Nombre</label><input id="dv-n" name="nombre" value="{{.Nombre}}" placeholder="{{.Sugerido}}" maxlength="120" autofocus>
+  <label for="dv-u">Ubicación</label><input id="dv-u" name="ubicacion" value="{{.Ubicacion}}" placeholder="Piso 3, Contabilidad" maxlength="200">
+  <label for="dv-t">Tipo</label><select id="dv-t" name="tipo"><option value="auto"{{if .Auto}} selected{{end}}>Automático (lo detecta)</option>{{range .Tipos}}<option value="{{.Clave}}"{{if .Sel}} selected{{end}}>{{.Nombre}}</option>{{end}}</select>
+  <div class="mf"><span class="error">{{.Error}}</span><button class="btn">Guardar</button></div>
+</form>
+{{template "modal-fin"}}{{end}}

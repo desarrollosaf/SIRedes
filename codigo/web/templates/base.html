@@ -32,8 +32,8 @@
   <a class="brand" href="/"><span class="isle">{{template "logo"}}</span>Monitoreo de Red</a>
   <nav>
     <a href="/"{{if eq .Activa "resumen"}} class="on"{{end}}>Resumen</a>
-    <a href="/?tab=dispositivos"{{if eq .Activa "dispositivos"}} class="on"{{end}}>Dispositivos</a>
-    <a href="/?tab=objetivos"{{if eq .Activa "objetivos"}} class="on"{{end}}>Internet y servicios</a>
+    <a href="/dispositivos"{{if eq .Activa "dispositivos"}} class="on"{{end}}>Dispositivos</a>
+    <a href="/internet"{{if eq .Activa "internet"}} class="on"{{end}}>Internet y servicios</a>
     {{if .Router}}<a href="/router"{{if eq .Activa "router"}} class="on"{{end}}>Router</a>{{end}}
     <a href="/eventos"{{if eq .Activa "eventos"}} class="on"{{end}}>Eventos</a>
     <a href="/configuracion" title="Configuración" aria-label="Configuración"{{if eq .Activa "configuracion"}} class="on"{{end}}>{{template "i-engrane"}}</a>
