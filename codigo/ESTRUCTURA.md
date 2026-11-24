@@ -37,10 +37,10 @@ cambios Operador) → `SoloAdmin` (cuentas y bitácora). La API v1 (`/api/v1/*`)
 | Pantalla | Estado |
 | :--- | :--- |
 | Entrada (`/login`) | Go + htmx (v2.15) |
-| Configuración | pendiente |
+| Configuración | Go + htmx (v2.16) |
 | Dispositivos | pendiente |
-| Router | pendiente |
-| Eventos | pendiente |
+| Router | Go + htmx (v2.18) |
+| Eventos | Go + htmx (v2.18) |
 | Internet y servicios | pendiente |
 | Resumen | pendiente |
 

@@ -276,6 +276,8 @@ type Store struct {
 	inetInit      bool                                  // ya se cerraron los cortes que quedaron abiertos al apagar
 	inetFails     int                                   // revisiones rápidas seguidas sin internet
 	inetFirstFail int64                                 // hora de la primera de esas fallas
+	inetGwSeen    bool                                  // durante el corte se revisó la puerta de enlace
+	inetGwFail    bool                                  // durante el corte la puerta de enlace no contestó alguna vez
 	db            *DB                                   // SQLite (si no se pudo abrir, se usa el JSON de antes)
 	baselineUntil time.Time                             // fin del inventario inicial
 	dirty         bool
@@ -1865,10 +1867,10 @@ func (s *Store) TargetResult(id string, ms float64, ok bool) {
 	}
 }
 
-// InternetSample recibe la revisión rápida de internet (cada 5 s, 8.8.8.8 y
+// InternetSample recibe la revisión rápida de internet (cada 5 s, 8.8.8.8, 1.1.1.1, 9.9.9.9 y
 // 1.1.1.1 por el cable). 2 fallas seguidas = corte (empieza en la primera falla);
 // en cuanto alguno responde, termina. Cada corte se guarda en SQLite (1 año).
-func (s *Store) InternetSample(ok bool) {
+func (s *Store) InternetSample(ok, gwOK, gwKnown bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	now := time.Now().Unix()
@@ -1887,6 +1889,13 @@ func (s *Store) InternetSample(ok bool) {
 		s.inetFails++
 		if s.inetFails == 1 {
 			s.inetFirstFail = now
+			s.inetGwSeen, s.inetGwFail = false, false
+		}
+		if gwKnown {
+			s.inetGwSeen = true
+			if !gwOK {
+				s.inetGwFail = true
+			}
 		}
 		if s.inetFails < 2 {
 			return
@@ -1907,12 +1916,31 @@ func (s *Store) InternetSample(ok bool) {
 		}
 		s.addEventLocked("offline", fmt.Sprintf("Se cayó el internet (%s, router %s)", segLabel(seg), gw))
 	case ok && s.inetDown != 0:
+		causa := inetCausa(s.inetGwSeen, s.inetGwFail)
 		if s.db != nil {
-			s.db.OutageEnd(s.inetDown, now, "")
+			s.db.OutageEnd(s.inetDown, now, causa)
 		}
-		s.addEventLocked("online", fmt.Sprintf("Volvió el internet (estuvo caído %s)", fmtDur(time.Duration(now-s.inetDown)*time.Second)))
+		txt := fmt.Sprintf("Volvió el internet (estuvo caído %s", fmtDur(time.Duration(now-s.inetDown)*time.Second))
+		if causa != "" {
+			txt += "; causa: " + causa
+		}
+		s.addEventLocked("online", txt+")")
 		s.inetDown = 0
+		s.inetGwSeen, s.inetGwFail = false, false
 	}
+}
+
+// inetCausa decide de quién fue el corte: si la puerta de enlace contestó durante
+// todo el corte, el router está bien y falla la salida ("proveedor"); si dejó de
+// contestar alguna vez, "router o cable". Sin revisar la puerta no se sabe ("").
+func inetCausa(gwSeen, gwFailed bool) string {
+	switch {
+	case !gwSeen:
+		return ""
+	case gwFailed:
+		return "router o cable"
+	}
+	return "proveedor"
 }
 
 // Outages: registro de cortes de internet de los últimos días.

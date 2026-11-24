@@ -414,19 +414,12 @@ func (m *Monitor) WatchInternet() {
 		if self := localIface(); self != nil && (strings.HasPrefix(self.name, "eth") || strings.HasPrefix(self.name, "en")) {
 			iface = self.name
 		}
-		var ok atomic.Bool
-		var wg sync.WaitGroup
-		for _, h := range []string{"8.8.8.8", "1.1.1.1"} {
-			wg.Add(1)
-			go func(h string) {
-				defer wg.Done()
-				if _, r := pingVia(h, 2*time.Second, iface); r {
-					ok.Store(true)
-				}
-			}(h)
+		gw := ""
+		if g := defaultGateways(); len(g) > 0 {
+			gw = g[0]
 		}
-		wg.Wait()
-		m.store.InternetSample(ok.Load())
+		ok, gwOK := internetRound(func(h string, t time.Duration) bool { _, r := pingVia(h, t, iface); return r }, gw)
+		m.store.InternetSample(ok, gwOK, gw != "")
 	}
 }
 
@@ -592,4 +585,44 @@ func vendorOf(mac string) string {
 		return "MAC privada (aleatoria)"
 	}
 	return ""
+}
+
+// internetHosts: destinos de la revisión de 5 s; hay corte solo si fallan los tres.
+var internetHosts = []string{"8.8.8.8", "1.1.1.1", "9.9.9.9"}
+
+// internetRound hace una revisión: ping en paralelo a los destinos y a la puerta
+// de enlace (gw, "" = no se revisa). Si ninguno de internet contestó, repite
+// enseguida con 1 s de espera antes de darla por falla (filtra pérdidas sueltas).
+// Devuelve si hubo internet y si la puerta contestó (en alguno de los intentos).
+func internetRound(ping func(host string, timeout time.Duration) bool, gw string) (ok, gwOK bool) {
+	round := func(t time.Duration) (bool, bool) {
+		var net, gate atomic.Bool
+		var wg sync.WaitGroup
+		for _, h := range internetHosts {
+			wg.Add(1)
+			go func(h string) {
+				defer wg.Done()
+				if ping(h, t) {
+					net.Store(true)
+				}
+			}(h)
+		}
+		if gw != "" {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				if ping(gw, t) {
+					gate.Store(true)
+				}
+			}()
+		}
+		wg.Wait()
+		return net.Load(), gate.Load()
+	}
+	ok, gwOK = round(2 * time.Second)
+	if !ok {
+		ok2, gw2 := round(1 * time.Second)
+		ok, gwOK = ok2, gwOK || gw2
+	}
+	return
 }

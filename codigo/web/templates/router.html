@@ -1,0 +1,70 @@
+{{/*
+  Router (Go + htmx). Página: web.Marco + datos del router. #rt-datos se vuelve a pedir
+  solo cada 5 s (GET /router con htmx devuelve solo ese pedazo). Cada segmento abre una
+  ventana (#modal) con los equipos de la tabla ARP del router.
+*/}}
+{{define "router"}}{{template "pagina-ini" .Marco}}
+{{template "rt-datos" .}}
+{{template "pagina-fin" .Marco}}{{end}}
+
+{{define "rt-datos"}}<div id="rt-datos" hx-get="/router" hx-trigger="every 5s" hx-target="this" hx-swap="outerHTML">
+{{if not .Activo}}<div class="card sub">El router no está configurado: no hay lecturas por SNMP.</div>
+{{else}}
+<div class="card{{if .Mal}} alarmed{{end}}"><div class="who">
+  <span class="isle sm {{if .Mal}}i-bad{{else}}i-ok{{end}}">{{template "i-router"}}</span>
+  <div><b>{{.Nombre}}</b> <span class="sub">{{.IP}}</span>
+  <div class="sub">{{.Detalle}}</div></div></div></div>
+
+<h2>Internet</h2>
+{{if .Inet.Hay}}{{with .Inet}}<div class="card">
+  <div class="who"><span class="isle sm i-vio">{{template "i-globo"}}</span>
+    <div><b>{{.Cable.Nombre}}</b>{{if .Cable.Alias}} · {{.Cable.Alias}}{{end}} <span class="sub {{.Cable.EstadoClase}}">{{.Cable.Estado}}</span></div></div>
+  <div class="mini">
+    <div><div class="lbl">Bajada</div><div class="val">{{.Bajada}}</div></div>
+    <div><div class="lbl">Subida</div><div class="val">{{.Subida}}</div></div>
+    <div><div class="lbl">Errores</div><div class="val {{.ErrClase}}">{{.Errores}}</div></div>
+  </div>
+  {{if .Rapida}}<div class="inet">
+    <b class="{{.EstadoClase}}">● {{.Estado}}</b>{{if .Desde}} <span class="sub">{{.Desde}}</span>{{end}}
+    {{if .Motivo}}<div class="sub">{{.Motivo}}</div>{{end}}
+    <div class="sub">{{.Linea}}</div></div>{{end}}
+  {{template "rt-segs" .Cable.Segs}}
+</div>{{end}}
+{{else}}<div class="card sub">El router no dice por cuál puerto sale a internet.</div>{{end}}
+
+<h2>Cables</h2>
+<div class="rejilla">{{range .Cables}}
+<div class="card{{if .Apagado}} apagado{{end}}">
+  <div class="who"><span class="isle sm {{.Icono}}">{{template "i-cable"}}</span>
+    <div><b>{{.Nombre}}</b>{{if .Alias}} · {{.Alias}}{{end}}<div class="sub {{.EstadoClase}}">{{.Estado}}</div></div></div>
+  <div class="kv">
+    <div>Equipos</div><div>{{.Equipos}}</div>
+    <div>Internet</div><div>{{if .Apagado}}—{{else}}{{.Bajada}} &nbsp;{{.Subida}}{{end}}</div>
+    <div>Errores</div><div>{{if .Apagado}}—{{else}}<span class="{{.ErrClase}}">{{.Errores}}</span>{{end}} {{if .ErrAcum}}<span class="sub">· {{.ErrAcum}}</span>{{end}}</div>
+  </div>
+  {{if .ConPct}}<progress class="pct" max="100" value="{{.Pct}}" title="{{.Pct}} % de la bajada de internet">{{.Pct}} %</progress>
+  <div class="sub">{{.Pct}} % de lo que baja de internet</div>{{end}}
+  {{template "rt-segs" .Segs}}
+</div>
+{{else}}<div class="card sub">Sin cables con datos todavía</div>{{end}}</div>
+<div class="sub nota">Datos del router por SNMP cada 30 s. "Equipos" son los que el router tiene en su tabla ARP por ese cable.</div>
+{{end}}
+</div>{{end}}
+
+{{define "rt-segs"}}{{if .}}<div class="sub tit">Segmentos</div><div class="rtsegs">{{range .}}
+  <button type="button" class="rtseg" hx-get="/router/segmento?red={{.Red | urlquery}}&puerta={{.Gw | urlquery}}" hx-target="#modal">
+    <b>{{.Red}}</b><span class="sub">{{.Puerta}}</span><span class="n">{{.Equipos}}</span>{{template "i-flecha"}}</button>{{end}}
+</div>{{end}}{{end}}
+
+{{define "rt-segmento"}}{{template "modal-ini-ancho" .Red}}
+  <div class="sub">{{.Puerta}} · {{.Cuenta}}</div>
+  {{if .Filas}}<div class="tabla alta"><table>
+    <thead><tr><th>IP</th><th>Equipo</th><th>MAC</th><th>Fabricante</th></tr></thead>
+    <tbody>{{range .Filas}}<tr>
+      <td class="mono">{{if .ID}}<a href="/?tab=dispositivos&dev={{.ID | urlquery}}&ip={{.IP | urlquery}}">{{.IP}}</a>{{else}}{{.IP}}{{end}}</td>
+      <td>{{if .Nombre}}{{if .ID}}<a href="/?tab=dispositivos&dev={{.ID | urlquery}}&ip={{.IP | urlquery}}">{{.Nombre}}</a>{{else}}{{.Nombre}}{{end}}{{else}}<span class="sub">—</span>{{end}}</td>
+      <td class="mono">{{.MAC}}</td>
+      <td>{{if .Fab}}{{.Fab}}{{else}}<span class="sub">—</span>{{end}}</td></tr>{{end}}</tbody>
+  </table></div>
+  {{else}}<p class="sub">El router no tiene equipos de este segmento en su tabla ARP.</p>{{end}}
+{{template "modal-fin"}}{{end}}

@@ -54,6 +54,8 @@ func rutas(store *Store, mon *Monitor, auth *cuentas.Auth, v1 http.Handler) http
 			r.Use(cuentas.PuedeCambiar)
 			registerAPI(r, store, mon)
 			rutasConfig(r, store, mon, auth) // Configuración (Go + htmx)
+			rutasEventos(r, store)           // Eventos (Go + htmx)
+			rutasRouter(r, store)            // Router SNMP (Go + htmx)
 		})
 		r.Group(func(r chi.Router) {
 			r.Use(cuentas.SoloAdmin)

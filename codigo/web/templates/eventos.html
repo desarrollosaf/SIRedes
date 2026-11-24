@@ -1,0 +1,34 @@
+{{/*
+  Eventos (Go + htmx). Página: web.Marco + .F (filtros) + .Segmentos + .Filas + .Cuenta.
+  Los filtros son un <form>: cada cambio pide /eventos con los valores y reemplaza solo
+  #ev-lista (la dirección se actualiza para poder copiarla o volver atrás).
+*/}}
+{{define "eventos"}}{{template "pagina-ini" .Marco}}
+<form class="toolbar" action="/eventos" method="get">
+  <input name="q" value="{{.F.Q}}" placeholder="Buscar" class="qsm" aria-label="Buscar" autocomplete="off"
+    hx-get="/eventos" hx-include="closest form" hx-target="#ev-lista" hx-push-url="true" hx-trigger="input changed delay:350ms, search">
+  <select name="seg" aria-label="Segmento" hx-get="/eventos" hx-include="closest form" hx-target="#ev-lista" hx-push-url="true" hx-trigger="change">
+    <option value="">Todos los segmentos</option>
+    <option value="-"{{if eq .F.Seg "-"}} selected{{end}}>Generales (internet, Raspberry)</option>
+    {{$sel := .F.Seg}}{{range .Segmentos}}<option value="{{.Seg}}"{{if eq .Seg $sel}} selected{{end}}>{{.Etiqueta}}</option>{{end}}
+  </select>
+  <select name="tipo" aria-label="Tipo" hx-get="/eventos" hx-include="closest form" hx-target="#ev-lista" hx-push-url="true" hx-trigger="change">
+    <option value="">Todos los tipos</option>
+    <option value="imp"{{if eq .F.Tipo "imp"}} selected{{end}}>Caídas y cortes</option>
+    <option value="con"{{if eq .F.Tipo "con"}} selected{{end}}>Conectado / desconectado</option>
+    <option value="new"{{if eq .F.Tipo "new"}} selected{{end}}>Equipos nuevos</option>
+    <option value="info"{{if eq .F.Tipo "info"}} selected{{end}}>Avisos</option>
+  </select>
+  <select name="dias" aria-label="Periodo" hx-get="/eventos" hx-include="closest form" hx-target="#ev-lista" hx-push-url="true" hx-trigger="change">
+    <option value="1"{{if eq .F.Dias "1"}} selected{{end}}>Hoy</option>
+    <option value="7"{{if eq .F.Dias "7"}} selected{{end}}>7 días</option>
+    <option value="30"{{if eq .F.Dias "30"}} selected{{end}}>30 días</option>
+    <option value="365"{{if eq .F.Dias "365"}} selected{{end}}>1 año</option>
+  </select>
+</form>
+<div id="ev-lista">{{template "ev-lista" .}}</div>
+{{template "pagina-fin" .Marco}}{{end}}
+
+{{define "ev-lista"}}<div class="sub ev-cuenta">{{.Cuenta}}</div>
+<div class="wrap">{{range .Filas}}<div class="ev {{.Clase}}"><time>{{.Cuando}}</time><b>{{.Nombre}}</b><span>{{.Mensaje}}</span></div>
+{{else}}<div class="ev sub">Sin eventos</div>{{end}}</div>{{end}}
