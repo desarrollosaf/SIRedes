@@ -11,3 +11,17 @@ monitoreo-autoip
 *.log
 .env
 *.env
+
+# Configuración con datos reales de la red
+segip.conf
+monitoreo-data.json
+*.json.bak
+
+# Certificados y llaves (HTTPS)
+*.pem
+*.key
+*.crt
+*.p12
+
+# Configuración local de Claude Code
+.claude/settings.local.json
